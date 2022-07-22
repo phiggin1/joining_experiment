@@ -1,0 +1,46 @@
+<launch>
+  <arg name="cath_min_r" default="0" />
+  <arg name="cath_max_r" default="64" />
+
+  <arg name="cath_min_g" default="72" />
+  <arg name="cath_max_g" default="255" />
+
+  <arg name="cath_min_b" default="0" />
+  <arg name="cath_max_b" default="64" />
+
+
+  <arg name="an_min_r" default="128" />
+  <arg name="an_max_r" default="255" />
+
+  <arg name="an_min_g" default="0" />
+  <arg name="an_max_g" default="48" />
+
+  <arg name="an_min_b" default="0" />
+  <arg name="an_max_b" default="48" />
+
+  <arg name="image" default="/kinect2/sd/image_color_rect" />
+
+  <node name="cathode_filter" pkg="opencv_apps" type="rgb_color_filter">
+      <remap from="image" to="$(arg image)" />
+
+      <param name="debug_view" value="false" />
+      <param name="r_limit_min"  value="$(arg cath_min_r)" />
+      <param name="r_limit_max"  value="$(arg cath_max_r)" />
+      <param name="g_limit_min"  value="$(arg cath_min_g)" />
+      <param name="g_limit_max"  value="$(arg cath_max_g)" />
+      <param name="b_limit_min"  value="$(arg cath_min_b)" />
+      <param name="b_limit_max"  value="$(arg cath_max_b)" />
+  </node>
+
+  <node name="anode_filter" pkg="opencv_apps" type="rgb_color_filter">
+      <remap from="image" to="$(arg image)" />
+      <param name="debug_view" value="false" />
+      <param name="r_limit_min"  value="$(arg an_min_r)" />
+      <param name="r_limit_max"  value="$(arg an_max_r)" />
+      <param name="g_limit_min"  value="$(arg an_min_g)" />
+      <param name="g_limit_max"  value="$(arg an_max_g)" />
+      <param name="b_limit_min"  value="$(arg an_min_b)" />
+      <param name="b_limit_max"  value="$(arg an_max_b)" />
+  </node>
+  
+</launch>
