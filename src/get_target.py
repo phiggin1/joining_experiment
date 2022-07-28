@@ -24,6 +24,8 @@ def remove_isolated_pixels(image):
     labels = output[1]
     stats = output[2]
 
+
+
     new_image = image.copy()
 
     for label in range(num_stats):
@@ -129,6 +131,11 @@ class GetTargetPose:
 
         rospy.spin()
 
+    # Define a function to show the image in an OpenCV Window
+    def show_image(self, img):
+        cv2.imshow("Image Window", img)
+        cv2.waitKey(3)
+
     def callback(self, rgb_ros_image, depth_ros_image):
         rgb = np.asarray(self.bridge.imgmsg_to_cv2(rgb_ros_image, desired_encoding="passthrough"))
         depth = np.asarray(self.bridge.imgmsg_to_cv2(depth_ros_image, desired_encoding="passthrough"))
@@ -153,10 +160,12 @@ class GetTargetPose:
             self.anode_pc_pub.publish(pc2.create_cloud_xyz32(depth_ros_image.header, points_anode))
             self.cathode_pc_pub.publish(pc2.create_cloud_xyz32(depth_ros_image.header, points_cathode))
 
+            #self.show_image(img)
+
         try:
             an_cent = self.get_centroid(points_anode)
             cath_cent = self.get_centroid(points_cathode)
-            a = (an_cent[0] - cath_cent[0], 0.0, 0.0)
+            a = (an_cent[0] - cath_cent[0], 0.0, 0.0)#an_cent[1] - cath_cent[1], an_cent[2] - cath_cent[2])
 
             #d = dist(an_cent, cath_cent)
             d, pa, pc = self.get_closest_points(points_anode, points_cathode)
@@ -166,29 +175,31 @@ class GetTargetPose:
 
             #yaw (in kinect frame around y axis)
             theta = np.arccos( dot(a,b)/(norm(a)*norm(b)) )
-            if ((an_cent[0] - cath_cent[0]) >0):
+            if (a[0] < 0):
                 theta = -theta
-            quat = quaternion_from_euler(0.0, theta, 0.0 )
+            quat = quaternion_from_euler(math.pi/2.0, theta-(math.pi/2.0), 0.0 )
 
             target = PoseStamped()
             target.header = depth_ros_image.header
             target.pose.position.x = (pa[0]+pc[0])/2.0
-            target.pose.position.y = (pa[1]+pc[1])/2.0
+            target.pose.position.y = (pa[1]+pc[1])/2.0 - .2
             target.pose.position.z = (pa[2]+pc[2])/2.0
             target.pose.orientation.x = quat[0]
             target.pose.orientation.y = quat[1]
             target.pose.orientation.z = quat[2]
             target.pose.orientation.w = quat[3]
-            rospy.loginfo(d)
-            rospy.loginfo(self.led_width)
+            #rospy.loginfo(d)
+            #rospy.loginfo(self.led_width)
 
             if d < self.led_width:
                 rospy.loginfo('=====================')
-                rospy.loginfo(pa)
-                rospy.loginfo(pc)
-                rospy.loginfo(theta*180/np.pi)
-                rospy.loginfo(target.pose.position)
-                rospy.loginfo(target.pose.orientation)
+                #rospy.loginfo(pa)
+                #rospy.loginfo(pc)
+                rospy.loginfo(an_cent)
+                rospy.loginfo(cath_cent)
+                #rospy.loginfo(theta*180/np.pi)
+                #rospy.loginfo("positon: x:%f y:%f z:%f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
+                #rospy.loginfo("orientation:  x:%f y:%f z:%f w:%f" % (target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z, target.pose.orientation.w))
                 if self.debug:
                     self.target_marker_pub.publish( get_marker(target) )
                 self.target_pub.publish(target)

@@ -1,0 +1,12 @@
+<launch>
+  <!-- The package has 2 examples of converting joystick commands to servo commands.
+       This is the higher-latency, Python-based teleop_tools example.
+       You can modify it in your own package for your own type of gamepad or joystick.
+       We do plan to accept pull requests of config files for other controller types using this method.
+  -->
+
+  <!-- This node does the servoing calculations -->
+  <node name="servo_server" pkg="moveit_servo" type="servo_server" output="screen" >
+    <rosparam command="load" file="$(find togo_moveit_config)/config/servo-config.yaml" />
+  </node>
+</launch>

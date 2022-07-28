@@ -148,14 +148,15 @@ class GoToTarget:
         target.header.stamp = t
         self.listener.waitForTransform(target.header.frame_id, self.planning_frame, t, rospy.Duration(4.0) )
         goal_pose = self.listener.transformPose(self.planning_frame, target)
-        
-        #p, q = self.listener.lookupTransform(self.planning_frame, target.header.frame_id, t)
+        '''
+        p, q = self.listener.lookupTransform(self.planning_frame, target.header.frame_id, t)
 
         goal_pose.pose.orientation.x = target.pose.orientation.x
         goal_pose.pose.orientation.y = target.pose.orientation.z
         goal_pose.pose.orientation.z = target.pose.orientation.y
         goal_pose.pose.orientation.w = target.pose.orientation.w
-
+        '''
+        '''
         print( goal_pose.pose.orientation.z )
         print('------------')
         if goal_pose.pose.orientation.z > 0:
@@ -174,6 +175,8 @@ class GoToTarget:
 
         print(goal_pose.pose.position.y)
         print('============')
+        '''
+        goal_pose.pose.position.z += self.hand_finger_offest_z
         return goal_pose
 
     def move_arm(self, pose, speed):
@@ -209,13 +212,14 @@ class GoToTarget:
         
         #move to handover position
         self.move_arm(self.hand_over_pose, 1.0)
+        '''
         self.gripper_client(self.hand_open)
 
         #LED = l e d
         if self.interactive:
             self.talk("Can you please put the l e d between my fingers?")
             self.talk("The shorter lead should be on your left.")
-        
+        '''
         #wait for LED to be given then close hand
         if self.interactive:
             raw_input("Hand over led, Press Enter to continue...")
@@ -251,6 +255,7 @@ class GoToTarget:
             goal_pose = self.get_target()
             print('goal')
             print(goal_pose.pose.position)
+            print(goal_pose.pose.orientation)
 
             goal_pose.pose.position.z += self.standoff_distance
             print('goal standoff')
@@ -259,7 +264,7 @@ class GoToTarget:
             if self.interactive:
                 raw_input("Move to standoff, Press Enter to continue...")
             self.move_arm(goal_pose, 1.0)
-            
+            '''
             #use servoing if this dosent work well enough
             #check target -> update goal
             final_pose = self.get_target()
@@ -271,7 +276,7 @@ class GoToTarget:
                 i = raw_input("Move to final, Press Enter to continue...")
             
             self.move_arm(final_pose, 1.0)
-            
+            '''
             #check if should open hand
             if self.interactive:
                 i = raw_input("Open hand (y/n) ")
@@ -281,15 +286,15 @@ class GoToTarget:
                     reached_target = True
                 else:
                     self.failures += 1
-            
+            '''
             print('goal standoff pose')
             print(goal_pose.pose.position)
             self.move_arm(goal_pose, 1.0)
-            
+            '''
         
-        print('goal hand over backoff pose')
-        print(self.hand_over_pose.pose.position)
-        self.move_arm(self.hand_over_pose, 1.0)
+        #print('goal hand over backoff pose')
+        #print(self.hand_over_pose.pose.position)
+        #self.move_arm(self.hand_over_pose, 1.0)
         
         '''
         #re home the arm
