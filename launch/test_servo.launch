@@ -8,5 +8,6 @@
   <!-- This node does the servoing calculations -->
   <node name="servo_server" pkg="moveit_servo" type="servo_server" output="screen" >
     <rosparam command="load" file="$(find togo_moveit_config)/config/servo-config.yaml" />
+    <remap from="/joint_states" to="/j2n6s300_driver/out/joint_state"/>
   </node>
 </launch>

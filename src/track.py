@@ -22,6 +22,10 @@ class Tracker:
 
         self.listener = tf.TransformListener()
 
+        self.tolerance = 0.01
+        self.pub_rate = 20 #hz
+        self.servo_speed = 0.05
+
         self.finger_sub = rospy.Subscriber('/test/finger_pose', PoseStamped, self.get_finger_pose)
         self.target_sub = rospy.Subscriber('/target/target', PoseStamped, self.get_target_pose)
         self.cart_vel_pub = rospy.Publisher('/servo_server/delta_twist_cmds', TwistStamped, queue_size=10)
@@ -37,7 +41,8 @@ class Tracker:
 
     def experiment(self):
         distance = 99999.9
-        while distance > .01 and not rospy.is_shutdown():
+        rate = rospy.Rate(self.pub_rate) # 10hz
+        while distance > self.tolerance and not rospy.is_shutdown():
             if self.target_pose is not None and self.finger_pose is not None:
                 d = get_direction(self.target_pose, self.finger_pose)
                 print(d)
@@ -47,12 +52,15 @@ class Tracker:
                 pose_vel = TwistStamped()
                 pose_vel.header = self.finger_pose.header
                 pose_vel.header.stamp = rospy.Time.now()
-                pose_vel.twist.linear.x = d[0]
-                pose_vel.twist.linear.y = d[1]
-                pose_vel.twist.linear.z = d[2]
+                #x = (a if b else 0)
 
-                print(pose_vel)
+                pose_vel.twist.linear.x = (self.servo_speed if abs(d[0]) > self.tolerance else 0.0)
+                pose_vel.twist.linear.y = (self.servo_speed if abs(d[1]) > self.tolerance else 0.0)
+                pose_vel.twist.linear.z = (self.servo_speed if abs(d[2]) > self.tolerance else 0.0)
+
+                #print(pose_vel)
                 self.cart_vel_pub.publish(pose_vel)
+                rate.sleep()
 
 if __name__ == '__main__':
     track = Tracker()
