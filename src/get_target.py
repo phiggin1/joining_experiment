@@ -112,7 +112,7 @@ class GetTargetPose:
         self.cathode_min = np.array([cath_min_b, cath_min_g, cath_min_r])
         self.cathode_max = np.array([cath_max_b, cath_max_g, cath_max_r])
 
-        self.depth_cam_info = rospy.wait_for_message("/kinect2/sd/camera_info", CameraInfo, timeout=None)
+        self.depth_cam_info = rospy.wait_for_message("/camera/unityrgb/camera_info", CameraInfo, timeout=None)
         self.cam_model = image_geometry.PinholeCameraModel()
         self.cam_model.fromCameraInfo(self.depth_cam_info)
 
@@ -123,8 +123,8 @@ class GetTargetPose:
         self.target_pub = rospy.Publisher('/target/target', PoseStamped, queue_size=10)
         self.target_marker_pub = rospy.Publisher('/target/target_marker', Marker, queue_size=10)
 
-        self.rgb_image_sub = message_filters.Subscriber('/kinect2/sd/image_color_rect', Image)
-        self.depth_image_sub = message_filters.Subscriber('/kinect2/sd/image_depth_rect', Image)
+        self.rgb_image_sub = message_filters.Subscriber('/camera/unityrgb/image_raw', Image)
+        self.depth_image_sub = message_filters.Subscriber('/camera/unitydepth/image_raw', Image)
 
         self.ts = message_filters.ApproximateTimeSynchronizer([self.rgb_image_sub, self.depth_image_sub], 10, slop=2.0)
         self.ts.registerCallback(self.callback)
@@ -182,7 +182,7 @@ class GetTargetPose:
             target = PoseStamped()
             target.header = depth_ros_image.header
             target.pose.position.x = (pa[0]+pc[0])/2.0
-            target.pose.position.y = (pa[1]+pc[1])/2.0 - .2
+            target.pose.position.y = (pa[1]+pc[1])/2.0 
             target.pose.position.z = (pa[2]+pc[2])/2.0
             target.pose.orientation.x = quat[0]
             target.pose.orientation.y = quat[1]
