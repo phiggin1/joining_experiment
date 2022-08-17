@@ -5,12 +5,9 @@ from geometry_msgs.msg import PoseStamped
 import tf
 import moveit_commander
 import moveit_msgs.msg
-from std_srvs.srv import Empty
 from std_msgs.msg import String
 from visualization_msgs.msg import Marker
-import actionlib
 import kinova_msgs.msg
-#import pyttsx3
 
 def quaternion_from_msg(orientation):
     return [orientation.x, orientation.y, orientation.z, orientation.w]
@@ -56,14 +53,7 @@ class GoToTarget:
         self.target_offset_pub = rospy.Publisher('/target/offset_target_pos', PoseStamped, queue_size=10)
         self.grab = rospy.Publisher('buttons', String, queue_size=10)
 
-        #self.speech = pyttsx3.init()
 
-
-        #action_address = '/j2n6s300_driver/fingers_action/finger_positions'
-
-        #self.client = actionlib.SimpleActionClient(action_address,
-        #                                    kinova_msgs.msg.SetFingersPositionAction)
-        #self.client.wait_for_server()
 
         self.interactive = True
 
@@ -76,10 +66,10 @@ class GoToTarget:
         self.hand_open = [self.finger_open, self.finger_open, self.finger_full_open]
         self.hand_closed = [self.finger_Full_closed, self.finger_Full_closed, self.finger_full_open]
 
-        self.standoff_distance = 0.20       #m
+        self.standoff_distance = 0.15      #m
         self.hand_finger_offset_x = 0.0#0.035   #m
         self.hand_finger_offest_y = 0.0#0.01    #m
-        self.hand_finger_offest_z = 0.15   #m
+        self.hand_finger_offest_z = 0.185   #m
         self.goal_tolerance = 0.0025        #m
 
         self.hand_over_pose = PoseStamped()
@@ -117,13 +107,8 @@ class GoToTarget:
                                                     moveit_msgs.msg.DisplayTrajectory,
                                                     queue_size=20)
 
-        #rospy.wait_for_service('/clear_octomap') #this will stop your code until the clear octomap service starts running
-        #self.clear_octomap = rospy.ServiceProxy('/clear_octomap', Empty)
-        
     def talk(self, str):
         print(str)
-        #self.speech.say(str)
-        #self.speech.runAndWait()
 
     def get_target(self):
         count = 0
@@ -151,15 +136,9 @@ class GoToTarget:
         target.header.stamp = t
         self.listener.waitForTransform(target.header.frame_id, self.planning_frame, t, rospy.Duration(4.0) )
         goal_pose = self.listener.transformPose(self.planning_frame, target)
-        '''
-        p, q = self.listener.lookupTransform(self.planning_frame, target.header.frame_id, t)
 
-        goal_pose.pose.orientation.x = target.pose.orientation.x
-        goal_pose.pose.orientation.y = target.pose.orientation.z
-        goal_pose.pose.orientation.z = target.pose.orientation.y
-        goal_pose.pose.orientation.w = target.pose.orientation.w
-        '''
         
+        '''
         print( goal_pose.pose.orientation.z )
         print('------------')
         if goal_pose.pose.orientation.z > 0:
@@ -168,68 +147,59 @@ class GoToTarget:
         else:
             print('green robot left')
             sign = 1.0
+        '''
 
-        print(goal_pose.pose.position.y)
-        print(sign*self.hand_finger_offest_y)
-
-        goal_pose.pose.position.x -= self.hand_finger_offset_x
-        goal_pose.pose.position.y += (sign*self.hand_finger_offest_y)
+        #goal_pose.pose.position.x -= self.hand_finger_offset_x
+        #goal_pose.pose.position.y += (sign*self.hand_finger_offest_y)
+        print('init goal')
+        print(goal_pose.pose.position.z)
+        print(self.hand_finger_offest_z)        
         goal_pose.pose.position.z += self.hand_finger_offest_z
-
-        print(goal_pose.pose.position.y)
+        print('finger offset goal')
+        print(goal_pose.pose.position.z)
         print('============')
         
-        goal_pose.pose.position.z += self.hand_finger_offest_z
         return goal_pose
 
     def move_arm(self, pose, speed):
-        #clear = self.clear_octomap()
         self.arm_move_group.set_max_velocity_scaling_factor(speed)
         self.arm_move_group.set_pose_target(pose.pose)
         self.arm_move_group.go(wait=True)
         self.arm_move_group.stop()
         self.arm_move_group.clear_pose_targets()
-        current_pose = self.arm_move_group.get_current_pose()
-        
-        #rospy.loginfo("move arm goal pose")
-        #rospy.loginfo(pose)
+
 
     def gripper_client(self, finger_positions):
-        """Send a gripper goal to the action server."""
-
-        goal = kinova_msgs.msg.SetFingersPositionGoal()
-        goal.fingers.finger1 = float(finger_positions[0])
-        goal.fingers.finger2 = float(finger_positions[1])
-        goal.fingers.finger3 = float(finger_positions[2])
-
-        self.client.send_goal(goal)
-        if self.client.wait_for_result(rospy.Duration(5.0)):
-            return self.client.get_result()
-        else:
-            self.client.cancel_all_goals()
-            rospy.logwarn('the gripper action timed-out')
-            return None
+        print(finger_positions)
 
     def experiment(self):
         self.failures = 0
+        '''
         
         #move to handover position
         self.move_arm(self.hand_over_pose, 1.0)
-        '''
+        
         self.gripper_client(self.hand_open)
 
         #LED = l e d
         if self.interactive:
             self.talk("Can you please put the l e d between my fingers?")
             self.talk("The shorter lead should be on your left.")
-        '''
+        
         #wait for LED to be given then close hand
         if self.interactive:
             raw_input("Hand over led, Press Enter to continue...")
         self.grab.publish("grabbed")
-        #self.gripper_client(self.hand_closed)
+        self.gripper_client(self.hand_closed)
                 
-        '''
+
+        #re home the arm
+        self.arm_move_group.set_max_velocity_scaling_factor(1.0)
+        self.arm_move_group.set_named_target('test_home')
+        self.arm_move_group.go(wait=True)
+        self.arm_move_group.stop()
+        self.arm_move_group.clear_pose_targets()
+
         #give instructions
         if self.interactive:
             s = "connect the red clip to the positive terminal of the battery"
@@ -256,10 +226,13 @@ class GoToTarget:
 
         reached_target = False
         while not reached_target:
+
+            #if self.interactive:
+            #    raw_input("waiting for user to present, Press Enter to continue...")
+
             goal_pose = self.get_target()
             print('goal')
             print(goal_pose.pose.position)
-            print(goal_pose.pose.orientation)
 
             goal_pose.pose.position.z += self.standoff_distance
             print('goal standoff')
@@ -292,16 +265,12 @@ class GoToTarget:
                 else:
                     self.failures += 1
             
-            print('goal standoff pose')
-            print(goal_pose.pose.position)
-            self.move_arm(goal_pose, 1.0)
+            #print('goal standoff pose')
+            #print(goal_pose.pose.position)
+            #self.move_arm(goal_pose, 1.0)
             
-        
-        #print('goal hand over backoff pose')
-        #print(self.hand_over_pose.pose.position)
-        #self.move_arm(self.hand_over_pose, 1.0)
-        
-        
+               
+        '''
         #re home the arm
         self.arm_move_group.set_max_velocity_scaling_factor(1.0)
         self.arm_move_group.set_named_target('test_home')
@@ -311,7 +280,7 @@ class GoToTarget:
         
 
         print("Experienced "+str(self.failures)+" failures")
-
+        '''
 if __name__ == '__main__':
     move = GoToTarget()
     move.experiment()
