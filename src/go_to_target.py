@@ -7,7 +7,9 @@ import moveit_commander
 import moveit_msgs.msg
 from std_msgs.msg import String
 from visualization_msgs.msg import Marker
-import kinova_msgs.msg
+import festival
+import soundfile as sf
+import json
 
 def quaternion_from_msg(orientation):
     return [orientation.x, orientation.y, orientation.z, orientation.w]
@@ -52,6 +54,7 @@ class GoToTarget:
 
         self.target_offset_pub = rospy.Publisher('/target/offset_target_pos', PoseStamped, queue_size=10)
         self.grab = rospy.Publisher('buttons', String, queue_size=10)
+        self.rivr_robot_speech = rospy.Publisher('/robotspeech', String, queue_size=10)
 
 
 
@@ -60,8 +63,8 @@ class GoToTarget:
         self.target_topic = "/target/target"
         self.retry_times = 10           
         self.finger_full_open = 0.0
-        self.finger_open = 5750.0
-        self.finger_Full_closed = 6460.0
+        self.finger_open = 1.1
+        self.finger_Full_closed = 1.3
 
         self.hand_open = [self.finger_open, self.finger_open, self.finger_full_open]
         self.hand_closed = [self.finger_Full_closed, self.finger_Full_closed, self.finger_full_open]
@@ -109,6 +112,10 @@ class GoToTarget:
 
     def talk(self, str):
         print(str)
+        wav = festival.textToWav(str)
+        data = sf.read(wav)
+        string_msg =json.dumps(list(data[0]))
+        self.rivr_robot_speech.publish(string_msg)
 
     def get_target(self):
         count = 0
@@ -169,17 +176,21 @@ class GoToTarget:
         self.arm_move_group.clear_pose_targets()
 
 
-    def gripper_client(self, finger_positions):
+    def move_fingers(self, finger_positions):
+        current_joints = self.hand_move_group.get_current_joint_values()
+        print(current_joints)
         print(finger_positions)
+        self.hand_move_group.go(finger_positions, wait=True)
+
 
     def experiment(self):
         self.failures = 0
-        '''
+        
         
         #move to handover position
         self.move_arm(self.hand_over_pose, 1.0)
         
-        self.gripper_client(self.hand_open)
+        self.move_fingers(self.hand_open)
 
         #LED = l e d
         if self.interactive:
@@ -190,7 +201,7 @@ class GoToTarget:
         if self.interactive:
             raw_input("Hand over led, Press Enter to continue...")
         self.grab.publish("grabbed")
-        self.gripper_client(self.hand_closed)
+        self.move_fingers(self.hand_closed)
                 
 
         #re home the arm
@@ -199,7 +210,7 @@ class GoToTarget:
         self.arm_move_group.go(wait=True)
         self.arm_move_group.stop()
         self.arm_move_group.clear_pose_targets()
-
+        '''
         #give instructions
         if self.interactive:
             s = "connect the red clip to the positive terminal of the battery"
@@ -227,8 +238,8 @@ class GoToTarget:
         reached_target = False
         while not reached_target:
 
-            #if self.interactive:
-            #    raw_input("waiting for user to present, Press Enter to continue...")
+            if self.interactive:
+                raw_input("waiting for user to present, Press Enter to continue...")
 
             goal_pose = self.get_target()
             print('goal')
@@ -242,8 +253,7 @@ class GoToTarget:
                 raw_input("Move to standoff, Press Enter to continue...")
             self.move_arm(goal_pose, 1.0)
             
-            #use servoing if this dosent work well enough
-            #check target -> update goal
+
             final_pose = self.get_target()
             print('goal final')
             print(final_pose.pose.position)
@@ -260,17 +270,15 @@ class GoToTarget:
                 if i == 'y':
                     print('open hand')
                     self.grab.publish("released")
-                    #self.gripper_client(self.hand_open)
+                    self.move_fingers(self.hand_open)
                     reached_target = True
                 else:
                     self.failures += 1
             
-            #print('goal standoff pose')
-            #print(goal_pose.pose.position)
-            #self.move_arm(goal_pose, 1.0)
+            print('goal standoff pose')
+            print(goal_pose.pose.position)
+            self.move_arm(goal_pose, 1.0)
             
-               
-        '''
         #re home the arm
         self.arm_move_group.set_max_velocity_scaling_factor(1.0)
         self.arm_move_group.set_named_target('test_home')
@@ -280,7 +288,7 @@ class GoToTarget:
         
 
         print("Experienced "+str(self.failures)+" failures")
-        '''
+        
 if __name__ == '__main__':
     move = GoToTarget()
     move.experiment()

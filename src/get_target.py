@@ -10,7 +10,7 @@ import image_geometry
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import PointCloud2
 import sensor_msgs.point_cloud2 as pc2
-from geometry_msgs.msg import PoseStamped,
+from geometry_msgs.msg import PoseStamped
 from tf.transformations import quaternion_from_euler
 
 def remove_isolated_pixels(image):
@@ -124,7 +124,7 @@ class GetTargetPose:
             self.anode_pc_pub.publish(pc2.create_cloud_xyz32(depth_ros_image.header, points_anode))
             self.cathode_pc_pub.publish(pc2.create_cloud_xyz32(depth_ros_image.header, points_cathode))
 
-            self.show_image(img)
+            #self.show_image(img)
         
         try:
             an_cent = self.get_centroid(points_anode)
