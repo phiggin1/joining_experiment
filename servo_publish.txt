@@ -1,0 +1,32 @@
+rostopic pub -r 100 -s /servo_server/delta_twist_cmds geometry_msgs/TwistStamped "header: 
+  stamp: now
+  frame_id: j2n6s300_end_effector
+twist:
+  linear:
+    x: 0.0
+    y: 0.0
+    z: -0.005
+  angular:
+    x: 0.0
+    y: 0.0
+    z: 0.0"
+
+
+
+rostopic pub -r 100 -s /servo_server/delta_twist_cmds geometry_msgs/TwistStamped "header: auto
+twist:
+  linear:
+    x: 0.0
+    y: 0.0
+    z: -0.005
+  angular:
+    x: 0.0
+    y: 0.0
+    z: 0.0"
+
+
+rostopic pub -r 100 -s /servo_server/delta_joint_cmds control_msgs/JointJog "header: auto
+joint_names:  [j2n6s300_joint_1, j2n6s300_joint_2, j2n6s300_joint_3, j2n6s300_joint_4, j2n6s300_joint_5, j2n6s300_joint_6]
+displacements:  [1.0,0.0,0.0,0.0,0.0,0.0]
+velocities: [1.0,0.0,0.0,0.0,0.0,0.0]
+duration: 0.25"

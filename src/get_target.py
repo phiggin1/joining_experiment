@@ -117,6 +117,7 @@ class GetTargetPose:
         points_cathode = self.get_pointcloud(cathode_depth_masked)
         
         if self.debug:
+            print('a', len(points_anode), len(points_cathode))
             anode_masked = cv2.bitwise_and(rgb, rgb, mask=anode_image)
             cathode_masked = cv2.bitwise_and(rgb, rgb, mask=cathode_image)
             img = anode_masked+cathode_masked

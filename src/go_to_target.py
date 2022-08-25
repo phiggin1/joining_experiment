@@ -72,7 +72,7 @@ class GoToTarget:
         self.standoff_distance = 0.15      #m
         self.hand_finger_offset_x = 0.0#0.035   #m
         self.hand_finger_offest_y = 0.0#0.01    #m
-        self.hand_finger_offest_z = 0.185   #m
+        self.hand_finger_offest_z = 0.2   #m
         self.goal_tolerance = 0.0025        #m
 
         self.hand_over_pose = PoseStamped()
@@ -194,8 +194,7 @@ class GoToTarget:
 
         #LED = l e d
         if self.interactive:
-            self.talk("Can you please put the l e d between my fingers?")
-            self.talk("The shorter lead should be on your left.")
+            self.talk("Can you please put the l e d between my fingers? The shorter lead should be on your left.")
         
         #wait for LED to be given then close hand
         if self.interactive:
@@ -210,30 +209,21 @@ class GoToTarget:
         self.arm_move_group.go(wait=True)
         self.arm_move_group.stop()
         self.arm_move_group.clear_pose_targets()
-        '''
+        
         #give instructions
         if self.interactive:
-            s = "connect the red clip to the positive terminal of the battery"
-            self.talk(s)
-
-            raw_input("Press Enter to continue...")
-
-            s = "connect the black clip to the negative terminal of the battery"
+            s = "place the lead of the red wire into the red putty"
             self.talk(s)
             raw_input("Press Enter to continue...")
 
-            s = "place the red clip into the red putty"
-            self.talk(s)
-            raw_input("Press Enter to continue...")
-
-            s = "place the black clip into the green putty"
+            s = "place the lead of the black wire into the green putty"
             self.talk(s)
             raw_input("Press Enter to continue...")
 
             s = "can you hold the two pieces of putty up in front of me?"
             self.talk(s)
             raw_input("Press Enter to continue...")
-        '''
+        
 
         reached_target = False
         while not reached_target:
