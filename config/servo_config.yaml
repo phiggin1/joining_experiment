@@ -14,13 +14,14 @@ scale:
 low_pass_filter_coeff: 2.  # Larger --> trust the filtered data more, trust the measurements less.
 
 ## Properties of outgoing commands
-publish_period: 0.008  # 1/Nominal publish rate [seconds]
+publish_period: 0.1      # 1/Nominal publish rate [seconds]
 low_latency_mode: false  # Set this to true to publish as soon as an incoming Twist command is received (publish_period is ignored)
 
 # What type of topic does your robot driver expect?
 # Currently supported are std_msgs/Float64MultiArray (for ros_control JointGroupVelocityController or JointGroupPositionController)
 # or trajectory_msgs/JointTrajectory (for Universal Robots and other non-ros_control robots)
 command_out_type: trajectory_msgs/JointTrajectory
+#command_out_type: std_msgs/Float64MultiArray
 
 # What to publish? Can save some bandwidth as most robots only require positions or velocities
 publish_joint_positions: true
@@ -28,15 +29,17 @@ publish_joint_velocities: false
 publish_joint_accelerations: false
 
 ## MoveIt properties
-move_group_name: right_arm #right_arm  #arm # Often 'manipulator' or 'arm'
-planning_frame: base_link  #base_link  #world # The MoveIt planning frame. Often 'base_link' or 'world'
+move_group_name: arm        # Often 'manipulator' or 'arm'
+#move_group_name: right_arm # Often 'manipulator' or 'arm'
+planning_frame: root        #world # The MoveIt planning frame. Often 'base_link' or 'world'
+#planning_frame: base_link  # The MoveIt planning frame. Often 'base_link' or 'world'
 
 ## Other frames
 ee_frame_name: j2n6s300_end_effector  # The name of the end effector link, used to return the EE pose
-robot_link_command_frame:  j2n6s300_end_effector  # commands must be given in the frame of a robot link. Usually either the base or end effector
+robot_link_command_frame: j2n6s300_end_effector  # commands must be given in the frame of a robot link. Usually either the base or end effector
 
 ## Stopping behaviour
-incoming_command_timeout:  0.1  # Stop servoing if X seconds elapse without a new command
+incoming_command_timeout:  0.15  # Stop servoing if X seconds elapse without a new command
 # If 0, republish commands forever even if the robot is stationary. Otherwise, specify num. to publish.
 # Important because ROS may drop some messages and we need the robot to halt reliably.
 num_outgoing_halt_msgs_to_publish: 4
@@ -49,9 +52,10 @@ joint_limit_margin: 0.1 # added as a buffer to joint limits [radians]. If moving
 ## Topic names
 cartesian_command_in_topic: delta_twist_cmds  # Topic for incoming Cartesian twist commands
 joint_command_in_topic: delta_joint_cmds # Topic for incoming joint angle commands
-joint_topic: /joint_states #/j2n6s300/joint_states #/joint_states
+joint_topic: /j2n6s300/joint_states #/j2n6s300/joint_states #/joint_states
 status_topic: status # Publish status to this topic
 command_out_topic: /j2n6s300/effort_joint_trajectory_controller/command # Publish outgoing commands here
+#command_out_topic: /j2n6s300/joint_group_position_controller/command # Publish outgoing commands here
 
 ## Collision checking for the entire robot body
 check_collisions: true # Check collisions?
@@ -66,3 +70,4 @@ scene_collision_proximity_threshold: 0.05 # Start decelerating when a scene coll
 # Parameters for "stop_distance"-type collision checking
 collision_distance_safety_factor: 1000 # Must be >= 1. A large safety factor is recommended to account for latency
 min_allowable_collision_distance: 0.01 # Stop if a collision is closer than this [m]
+

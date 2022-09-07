@@ -10,6 +10,13 @@
   <!-- This node does the servoing calculations -->
   <node name="servo_server" pkg="moveit_servo" type="servo_server" output="screen" >
     <rosparam command="load" file="$(find joining_experiment)/config/servo_config.yaml" />
-    
+    <remap from="/joint_states" to="/j2n6s300/joint_states"/>
   </node>
+
+  <node name="joint_angles" pkg="joining_experiment" type="joint_publisher.py" output="screen" >  </node>
+
+  <node name="servo_pose_track" pkg="moveit_servo" type="pose_tracking" output="screen" >
+    <rosparam command="load" file="$(find moveit_servo)/config/pose_tracking_settings.yaml" />
+  </node>
+
 </launch>
