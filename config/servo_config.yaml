@@ -29,10 +29,10 @@ publish_joint_velocities: false
 publish_joint_accelerations: false
 
 ## MoveIt properties
-move_group_name: arm        # Often 'manipulator' or 'arm'
-#move_group_name: right_arm # Often 'manipulator' or 'arm'
-planning_frame: root        #world # The MoveIt planning frame. Often 'base_link' or 'world'
-#planning_frame: base_link  # The MoveIt planning frame. Often 'base_link' or 'world'
+move_group_name: arm        # Often 'manipulator' or 'arm' --- just arm
+#move_group_name: right_arm # Often 'manipulator' or 'arm' --- full husky robot
+planning_frame: root        #world # The MoveIt planning frame. Often 'base_link' or 'world' --- just arm
+#planning_frame: base_link  # The MoveIt planning frame. Often 'base_link' or 'world' --- full husky robot
 
 ## Other frames
 ee_frame_name: j2n6s300_end_effector  # The name of the end effector link, used to return the EE pose

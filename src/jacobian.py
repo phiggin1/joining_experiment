@@ -24,16 +24,16 @@ class GetJacobian:
         self.stop = False
         rospy.init_node('jacobian', anonymous=True)
 
-        joint_state_topic = ['joint_states:=/joint_states']
-        #joint_state_topic = ['joint_states:=/j2n6s300/joint_states']
+        #joint_state_topic = ['joint_states:=/joint_states']
+        joint_state_topic = ['joint_states:=/j2n6s300/joint_states']
         moveit_commander.roscpp_initialize(joint_state_topic)
 
 
         self.robot = moveit_commander.RobotCommander()
         self.scene = moveit_commander.PlanningSceneInterface()
 
-        self.arm_group_name = "right_arm"
-        #self.arm_group_name = "arm"
+        #self.arm_group_name = "right_arm"
+        self.arm_group_name = "arm"
         self.arm_move_group = moveit_commander.MoveGroupCommander(self.arm_group_name)
       
         self.planning_frame = self.arm_move_group.get_planning_frame()
@@ -78,8 +78,8 @@ class GetJacobian:
             % (rospy.Time.now().to_sec(), ee_pos_str, ee_rot_str, cond))
         '''
 
-        print("Time:\t%.2f\tJoint Angles:\t%s\tEE Position:\t%s\tEE Orientation:\t%s\tCondition:\t%.2f" 
-            % (rospy.Time.now().to_sec(), joint_str, ee_pos_str, ee_euler_rot_str, cond))
+        print("Time:\t%.2f\tJoint Angles:\t%s\t \n\t EE Position:\t%s\tEE Orientation:\t%s\tCondition:\t%.2f" 
+            % (rospy.Time.now().to_sec(), joint_str, ee_pos_str, ee_quat_rot_str, cond))
             
 if __name__ == '__main__':
     jac = GetJacobian()

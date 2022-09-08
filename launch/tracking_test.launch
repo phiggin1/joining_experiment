@@ -1,0 +1,6 @@
+<launch>
+  <node name="joining_pose_tracking" pkg="joining_experiment" type="joining_pose_tracking" output="screen" >
+    <rosparam command="load" file="$(find joining_experiment)/config/servo_config.yaml" />
+    <rosparam command="load" file="$(find moveit_servo)/config/pose_tracking_settings.yaml" />
+  </node>
+</launch>

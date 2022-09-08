@@ -1,0 +1,38 @@
+  Eigen::Quaterniond q_current(command_frame_transform_.rotation());
+  Eigen::Quaterniond q_error = q_desired * q_current.inverse();
+
+  // Convert axis-angle to angular velocity
+  Eigen::AngleAxisd axis_angle(q_error);
+  // Cache the angular error, for rotation tolerance checking
+  angular_error_ = axis_angle.angle();
+  double ang_vel_magnitude = cartesian_orientation_pids_[0].computeCommand(*angular_error_, loop_rate_.expectedCycleTime());
+  twist.angular.x = ang_vel_magnitude * axis_angle.axis()[0];
+  twist.angular.y = ang_vel_magnitude * axis_angle.axis()[1];
+  twist.angular.z = ang_vel_magnitude * axis_angle.axis()[2];
+
+https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation#Recovering_the_axis-angle_representation
+
+ template<typename Scalar>
+ template<typename QuatDerived>
+ EIGEN_DEVICE_FUNC AngleAxis<Scalar>& AngleAxis<Scalar>::operator=(const QuaternionBase<QuatDerived>& q)
+ {
+   EIGEN_USING_STD(atan2)
+   EIGEN_USING_STD(abs)
+   Scalar n = q.vec().norm();
+   if(n<NumTraits<Scalar>::epsilon())
+     n = q.vec().stableNorm();
+  
+   if (n != Scalar(0))
+   {
+     m_angle = Scalar(2)*atan2(n, abs(q.w()));
+     if(q.w() < Scalar(0))
+       n = -n;
+     m_axis  = q.vec() / n;
+   }
+   else
+   {
+     m_angle = Scalar(0);
+     m_axis << Scalar(1), Scalar(0), Scalar(0);
+   }
+   return *this;
+ }
