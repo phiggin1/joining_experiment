@@ -13,6 +13,9 @@
     <remap from="/joint_states" to="/j2n6s300/joint_states"/>
   </node>
 
+  <!--<node name="track_target" pkg="joining_experiment" type="get_target.py" output="screen" ></node>-->
+  <node name="track_finger" pkg="joining_experiment" type="finger_pos.py" output="screen" ></node>
+
 <!--
   <node name="pose_tracking_example" pkg="moveit_servo" type="pose_tracking_example" output="screen" >
     <rosparam command="load" file="$(find joining_experiment)/config/servo_config.yaml" />
