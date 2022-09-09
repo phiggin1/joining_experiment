@@ -7,6 +7,7 @@ from geometry_msgs.msg import PoseStamped, TwistStamped
 from kinova_msgs.msg import PoseVelocity
 from tf.transformations import euler_from_quaternion, quaternion_from_euler, quaternion_inverse, quaternion_multiply
 import numpy as np
+from simple_pid import PID
 
 def get_direction(p1, p2):
     x = p1.pose.position.x - p2.pose.position.x
@@ -15,7 +16,7 @@ def get_direction(p1, p2):
 
     return (x,y,z)
 
-def print_pose(p):
+def pose2sting(p):
     pos = [p.position.x, 
             p.position.y, 
             p.position.z]
@@ -29,11 +30,13 @@ def print_pose(p):
 
     quat_rot_str = np.array2string(np.asarray(rot),  precision=2, separator=',')
     euler_rot_str = np.array2string(np.asarray(euler_from_quaternion(rot)),  precision=2, separator=',')
-    print("Position:\t%s\tOrientation:\t%s" % (pos_str, quat_rot_str))
 
-def print_quat(q):
+    return "Position:\t%s\tOrientation:\t%s" % (pos_str, quat_rot_str)
+
+def quat2string(q):
     quat__str = np.array2string(np.asarray(q),  precision=2, separator=',')
-    print("Orientation:\t%s" %  quat__str)
+
+    return "Orientation:\t%s" %  quat__str
 
 def quat_from_orientation(orientation):
     q = [
@@ -51,7 +54,6 @@ def angle_axis(q):
     qz = q[2]
     qw = q[3]
 
-    print(q)
 
     sqrt_q = math.sqrt( qx**2 + qy**2 + qz**2 )
 
@@ -72,9 +74,16 @@ class Tracker:
 
         self.listener = tf.TransformListener()
 
-        self.tolerance = 0.01
+        self.positional_tolerance = 0.01
+        self.angular_tolerance = 0.1
+
         self.pub_rate = 10 #hz
         self.servo_speed = 0.5
+
+        self.x_pid = PID(Kp=1.5, Ki=0.0, Kd=0.0)
+        self.y_pid = PID(Kp=1.5, Ki=0.0, Kd=0.0)
+        self.z_pid = PID(Kp=1.5, Ki=0.0, Kd=0.0)
+        self.theta_pid = PID(Kp=0.5, Ki=0.0, Kd=0.0)
 
         self.finger_sub = rospy.Subscriber('/test/finger_pose', PoseStamped, self.get_finger_pose)
         self.target_sub = rospy.Subscriber('/target/target', PoseStamped, self.get_target_pose)
@@ -92,42 +101,86 @@ class Tracker:
         self.listener.waitForTransform(pose.header.frame_id, 'root', t, rospy.Duration(4.0) )
         self.target_pose = self.listener.transformPose('root', pose)
 
+    def satisfy_tolerance(self, angular_error, positional_error):
+        x_err = positional_error[0]
+        y_err = positional_error[1]
+        z_err = positional_error[2]
+
+        print(abs(x_err)  ,
+                abs(y_err)  ,
+                abs(z_err)  ,
+                abs(angular_error) )
+        print(abs(x_err) < self.positional_tolerance ,
+                abs(y_err) < self.positional_tolerance ,
+                abs(z_err) < self.positional_tolerance ,
+                abs(angular_error) < self.angular_tolerance)
+
+
+        return (abs(x_err) < self.positional_tolerance and
+                abs(y_err) < self.positional_tolerance and
+                abs(z_err) < self.positional_tolerance and
+                abs(angular_error) < self.angular_tolerance)
+
     def experiment(self):
-        distance = 99999.9
+        positional_error = [9999.9,9999.9,9999.9]
+        angular_error = 9999.9
+        last_time = None
         rate = rospy.Rate(self.pub_rate) # 10hz
-        while distance > self.tolerance and not rospy.is_shutdown():
+        while (not self.satisfy_tolerance(angular_error, positional_error)):
             if self.target_pose is not None and self.finger_pose is not None:
-                d = get_direction(self.target_pose, self.finger_pose)
+                time = rospy.Time.now().to_sec()
+                if last_time is None:
+                    dt = 0.1
+                else:
+                    dt = time - last_time
 
-                print("target pose")
-                print_pose(self.target_pose.pose)
-                print("finger pose")
-                print_pose(self.finger_pose.pose)
-
-                distance = math.sqrt(d[0]**2  + d[1]**2 + d[2]**2)
-                print("d: %f\tx: %fd\ty: %f\tz: %f" % (distance, d[0],d[1],d[2]))
+                print(dt)
+                positional_error = get_direction(self.finger_pose, self.target_pose)
 
                 q_t = quat_from_orientation(self.target_pose.pose.orientation)
                 q_f = quat_from_orientation(self.finger_pose.pose.orientation)
+                q_r = quaternion_multiply( q_t , quaternion_inverse(q_f))
+                angular_error, ax, ay, az =angle_axis(q_r)
 
-                q_error = quaternion_multiply( q_t , q_f)
-                print("angular dist")
-                print_quat(q_error)
-                print(angle_axis(q_error))
+
+
+                print("Target pose: " + pose2sting(self.target_pose.pose))
+                print("Finger pose: " + pose2sting(self.finger_pose.pose))
+
+                print("postional error\tx: %fd\ty: %f\tz: %f" % (positional_error[0],positional_error[1],positional_error[2]))
+                print("angular error: %f" % (angular_error))
+
+
+                t_l_x = self.x_pid(positional_error[0], dt)
+                t_l_y = self.x_pid(positional_error[1], dt)
+                t_l_z = self.x_pid(positional_error[2], dt)
+
+
+                ang_vel_magnitude = self.theta_pid(angular_error, dt)
+                t_a_x = ang_vel_magnitude * ax
+                t_a_y = ang_vel_magnitude * ay
+                t_a_z = ang_vel_magnitude * az
 
                 pose_vel = TwistStamped()
                 pose_vel.header = self.finger_pose.header
                 pose_vel.header.stamp = rospy.Time.now()
 
-                pose_vel.twist.linear.x = (self.servo_speed*d[0] if abs(d[0]) > self.tolerance else 0.0)
-                pose_vel.twist.linear.y = (self.servo_speed*d[1] if abs(d[1]) > self.tolerance else 0.0)
-                pose_vel.twist.linear.z = (self.servo_speed*d[2] if abs(d[2]) > self.tolerance else 0.0)
+                pose_vel.twist.linear.x = t_l_x #(self.servo_speed*d[0] if abs(d[0]) > self.tolerance else 0.0)
+                pose_vel.twist.linear.y = t_l_y #(self.servo_speed*d[1] if abs(d[1]) > self.tolerance else 0.0)
+                pose_vel.twist.linear.z = t_l_z #(self.servo_speed*d[2] if abs(d[2]) > self.tolerance else 0.0)
 
-                print(pose_vel.twist.linear)
-                #self.cart_vel_pub.publish(pose_vel)
+                pose_vel.twist.angular.x = t_a_x #(self.servo_speed*d[0] if abs(d[0]) > self.tolerance else 0.0)
+                pose_vel.twist.angular.y = t_a_y #(self.servo_speed*d[1] if abs(d[1]) > self.tolerance else 0.0)
+                pose_vel.twist.angular.z = t_a_z #(self.servo_speed*d[2] if abs(d[2]) > self.tolerance else 0.0)
+
+                print(pose_vel.twist)
+                self.cart_vel_pub.publish(pose_vel)
+                last_time = time
                 rate.sleep()
+                print("postional error\tx: %fd\ty: %f\tz: %f" % (positional_error[0],positional_error[1],positional_error[2]))
+
 
 if __name__ == '__main__':
     track = Tracker()
-    while not rospy.is_shutdown():
-        track.experiment()
+    #while not rospy.is_shutdown():
+    track.experiment()
