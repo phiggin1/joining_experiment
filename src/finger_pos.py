@@ -42,9 +42,10 @@ pose_pub = rospy.Publisher('/test/finger_pose', PoseStamped, queue_size=10)
 
 finger1 = "j2n6s300_link_finger_tip_1"
 finger2 = "j2n6s300_link_finger_tip_2"
-effector = "j2n6s300_end_effector"
-base = "root"
-finger_tip_offset = 0.0425
+#effector = "j2n6s300_end_effector"
+effector = "j2n6s300_link_6"
+base = "base_link"
+finger_tip_offset = 0.0825
 
 
 
@@ -67,7 +68,7 @@ while not rospy.is_shutdown():
     pose.header.stamp = now
     pose.pose.position.x = (f1_tf[0][0]+f2_tf[0][0])/2.0 
     pose.pose.position.y = (f1_tf[0][1]+f2_tf[0][1])/2.0 
-    pose.pose.position.z = (f1_tf[0][2]+f2_tf[0][2])/2.0 + finger_tip_offset
+    pose.pose.position.z = (f1_tf[0][2]+f2_tf[0][2])/2.0 - finger_tip_offset
     pose.pose.orientation.w = 1.0
 
     pose_pub.publish(pose)

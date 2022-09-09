@@ -120,7 +120,7 @@ class Tracker:
 
         rate = rospy.Rate(self.pub_rate) # 10hz
         while (not self.satisfy_tolerance(angular_error, positional_error)):
-            if self.target_pose is not None and self.finger_pose is not None:
+            if (self.target_pose is not None and self.finger_pose is not None):
                 time = rospy.Time.now().to_sec()
                 if last_time is None:
                     dt = 0.1
@@ -163,7 +163,7 @@ class Tracker:
                 pose_vel.twist.angular.z = t_a_z 
 
                 print(pose_vel.twist)
-                self.cart_vel_pub.publish(pose_vel)
+                #self.cart_vel_pub.publish(pose_vel)
                 last_time = time
                 rate.sleep()
 

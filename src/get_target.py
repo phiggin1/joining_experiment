@@ -117,7 +117,7 @@ class GetTargetPose:
         points_cathode = self.get_pointcloud(cathode_depth_masked)
         
         if self.debug:
-            print('a', len(points_anode), len(points_cathode))
+            print(len(points_anode), len(points_cathode))
             anode_masked = cv2.bitwise_and(rgb, rgb, mask=anode_image)
             cathode_masked = cv2.bitwise_and(rgb, rgb, mask=cathode_image)
             img = anode_masked+cathode_masked
@@ -165,8 +165,8 @@ class GetTargetPose:
             #rospy.loginfo(an_cent)
             #rospy.loginfo(cath_cent)
             #rospy.loginfo(theta*180/np.pi)
-            rospy.loginfo("positon: x:%f y:%f z:%f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
-            rospy.loginfo("orientation:  x:%f y:%f z:%f w:%f" % (target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z, target.pose.orientation.w))
+            rospy.loginfo("positon:     x:%.4f\ty:%.4f\tz:%.4f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
+            rospy.loginfo("orientation: x:%.4f\ty:%.4f\tz:%.4f\tw:%.4f" % (target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z, target.pose.orientation.w))
 
             self.target_pub.publish(target)
 
