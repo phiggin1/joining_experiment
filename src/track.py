@@ -71,6 +71,8 @@ class Tracker:
 
         self.target_pose = None
         self.finger_pose = None
+        self.base_frame = 'base_link'
+        #self.base_frame = 'root'
 
         self.listener = tf.TransformListener()
 
@@ -92,29 +94,19 @@ class Tracker:
     def get_finger_pose(self, pose):
         t = rospy.Time.now()
         pose.header.stamp = t
-        self.listener.waitForTransform(pose.header.frame_id, 'root', t, rospy.Duration(4.0) )
-        self.finger_pose = self.listener.transformPose('root', pose)
+        self.listener.waitForTransform(pose.header.frame_id, self.base_frame, t, rospy.Duration(4.0) )
+        self.finger_pose = self.listener.transformPose(self.base_frame, pose)
 
     def get_target_pose(self, pose):
         t = rospy.Time.now()
         pose.header.stamp = t
-        self.listener.waitForTransform(pose.header.frame_id, 'root', t, rospy.Duration(4.0) )
-        self.target_pose = self.listener.transformPose('root', pose)
+        self.listener.waitForTransform(pose.header.frame_id, self.base_frame, t, rospy.Duration(4.0) )
+        self.target_pose = self.listener.transformPose(self.base_frame, pose)
 
     def satisfy_tolerance(self, angular_error, positional_error):
         x_err = positional_error[0]
         y_err = positional_error[1]
         z_err = positional_error[2]
-
-        print(abs(x_err)  ,
-                abs(y_err)  ,
-                abs(z_err)  ,
-                abs(angular_error) )
-        print(abs(x_err) < self.positional_tolerance ,
-                abs(y_err) < self.positional_tolerance ,
-                abs(z_err) < self.positional_tolerance ,
-                abs(angular_error) < self.angular_tolerance)
-
 
         return (abs(x_err) < self.positional_tolerance and
                 abs(y_err) < self.positional_tolerance and
@@ -125,6 +117,7 @@ class Tracker:
         positional_error = [9999.9,9999.9,9999.9]
         angular_error = 9999.9
         last_time = None
+
         rate = rospy.Rate(self.pub_rate) # 10hz
         while (not self.satisfy_tolerance(angular_error, positional_error)):
             if self.target_pose is not None and self.finger_pose is not None:
@@ -132,7 +125,7 @@ class Tracker:
                 if last_time is None:
                     dt = 0.1
                 else:
-                    dt = time - last_time
+                    dt = abs(time - last_time)
 
                 print(dt)
                 positional_error = get_direction(self.finger_pose, self.target_pose)
@@ -142,19 +135,15 @@ class Tracker:
                 q_r = quaternion_multiply( q_t , quaternion_inverse(q_f))
                 angular_error, ax, ay, az =angle_axis(q_r)
 
-
-
                 print("Target pose: " + pose2sting(self.target_pose.pose))
                 print("Finger pose: " + pose2sting(self.finger_pose.pose))
 
-                print("postional error\tx: %fd\ty: %f\tz: %f" % (positional_error[0],positional_error[1],positional_error[2]))
-                print("angular error: %f" % (angular_error))
-
+                print("Postional error\tx: %fd\ty: %f\tz: %f" % (positional_error[0],positional_error[1],positional_error[2]))
+                print("Angular error: %f" % (angular_error))
 
                 t_l_x = self.x_pid(positional_error[0], dt)
                 t_l_y = self.x_pid(positional_error[1], dt)
                 t_l_z = self.x_pid(positional_error[2], dt)
-
 
                 ang_vel_magnitude = self.theta_pid(angular_error, dt)
                 t_a_x = ang_vel_magnitude * ax
@@ -165,19 +154,18 @@ class Tracker:
                 pose_vel.header = self.finger_pose.header
                 pose_vel.header.stamp = rospy.Time.now()
 
-                pose_vel.twist.linear.x = t_l_x #(self.servo_speed*d[0] if abs(d[0]) > self.tolerance else 0.0)
-                pose_vel.twist.linear.y = t_l_y #(self.servo_speed*d[1] if abs(d[1]) > self.tolerance else 0.0)
-                pose_vel.twist.linear.z = t_l_z #(self.servo_speed*d[2] if abs(d[2]) > self.tolerance else 0.0)
+                pose_vel.twist.linear.x = t_l_x
+                pose_vel.twist.linear.y = t_l_y
+                pose_vel.twist.linear.z = t_l_z
 
-                pose_vel.twist.angular.x = t_a_x #(self.servo_speed*d[0] if abs(d[0]) > self.tolerance else 0.0)
-                pose_vel.twist.angular.y = t_a_y #(self.servo_speed*d[1] if abs(d[1]) > self.tolerance else 0.0)
-                pose_vel.twist.angular.z = t_a_z #(self.servo_speed*d[2] if abs(d[2]) > self.tolerance else 0.0)
+                pose_vel.twist.angular.x = t_a_x
+                pose_vel.twist.angular.y = t_a_y
+                pose_vel.twist.angular.z = t_a_z 
 
                 print(pose_vel.twist)
                 self.cart_vel_pub.publish(pose_vel)
                 last_time = time
                 rate.sleep()
-                print("postional error\tx: %fd\ty: %f\tz: %f" % (positional_error[0],positional_error[1],positional_error[2]))
 
 
 if __name__ == '__main__':

@@ -29,10 +29,10 @@ publish_joint_velocities: false
 publish_joint_accelerations: false
 
 ## MoveIt properties
-move_group_name: arm        # Often 'manipulator' or 'arm' --- just arm
-#move_group_name: right_arm # Often 'manipulator' or 'arm' --- full husky robot
-planning_frame: root        #world # The MoveIt planning frame. Often 'base_link' or 'world' --- just arm
-#planning_frame: base_link  # The MoveIt planning frame. Often 'base_link' or 'world' --- full husky robot
+#move_group_name: arm        # Often 'manipulator' or 'arm' --- just arm
+move_group_name: right_arm # Often 'manipulator' or 'arm' --- full husky robot
+#planning_frame: root        #world # The MoveIt planning frame. Often 'base_link' or 'world' --- just arm
+planning_frame: base_link  # The MoveIt planning frame. Often 'base_link' or 'world' --- full husky robot
 
 ## Other frames
 ee_frame_name: j2n6s300_end_effector  # The name of the end effector link, used to return the EE pose
@@ -52,7 +52,9 @@ joint_limit_margin: 0.1 # added as a buffer to joint limits [radians]. If moving
 ## Topic names
 cartesian_command_in_topic: delta_twist_cmds  # Topic for incoming Cartesian twist commands
 joint_command_in_topic: delta_joint_cmds # Topic for incoming joint angle commands
-joint_topic: /j2n6s300/joint_states #/j2n6s300/joint_states #/joint_states
+#joint_topic: /j2n6s300/joint_states 
+joint_topic: /joint_states
+
 status_topic: status # Publish status to this topic
 command_out_topic: /j2n6s300/effort_joint_trajectory_controller/command # Publish outgoing commands here
 #command_out_topic: /j2n6s300/joint_group_position_controller/command # Publish outgoing commands here

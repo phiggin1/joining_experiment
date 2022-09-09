@@ -24,16 +24,16 @@ class GetJacobian:
         self.stop = False
         rospy.init_node('jacobian', anonymous=True)
 
-        #joint_state_topic = ['joint_states:=/joint_states']
-        joint_state_topic = ['joint_states:=/j2n6s300/joint_states']
+        joint_state_topic = ['joint_states:=/joint_states']
+        #joint_state_topic = ['joint_states:=/j2n6s300/joint_states']
         moveit_commander.roscpp_initialize(joint_state_topic)
 
 
         self.robot = moveit_commander.RobotCommander()
         self.scene = moveit_commander.PlanningSceneInterface()
 
-        #self.arm_group_name = "right_arm"
-        self.arm_group_name = "arm"
+        self.arm_group_name = "right_arm"
+        #self.arm_group_name = "arm"
         self.arm_move_group = moveit_commander.MoveGroupCommander(self.arm_group_name)
       
         self.planning_frame = self.arm_move_group.get_planning_frame()
