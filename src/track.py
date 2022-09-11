@@ -31,12 +31,12 @@ def pose2sting(p):
     quat_rot_str = np.array2string(np.asarray(rot),  precision=2, separator=',')
     euler_rot_str = np.array2string(np.asarray(euler_from_quaternion(rot)),  precision=2, separator=',')
 
-    return "Position:\t%s\tOrientation:\t%s" % (pos_str, quat_rot_str)
+    return "Position: %s\tOrientation: %s" % (pos_str, quat_rot_str)
 
 def quat2string(q):
     quat__str = np.array2string(np.asarray(q),  precision=2, separator=',')
 
-    return "Orientation:\t%s" %  quat__str
+    return "Orientation: %s" %  quat__str
 
 def quat_from_orientation(orientation):
     q = [
@@ -83,7 +83,7 @@ class Tracker:
         self.servo_speed = 0.5
 
         self.num_halt_msgs = 20
-        
+
         self.time_out = 30.0
 
         self.x_pid = PID(Kp=1.5, Ki=0.0, Kd=0.0)
@@ -122,16 +122,19 @@ class Tracker:
         angular_error = 9999.9
         last_time = None
 
+
         rate = rospy.Rate(self.pub_rate) # 10hz
         while (not self.satisfy_tolerance(angular_error, positional_error)):
             if (self.target_pose is not None and self.finger_pose is not None):
                 time = rospy.Time.now().to_sec()
+
                 if last_time is None:
                     dt = 0.1
                 else:
                     dt = abs(time - last_time)
+                last_time = time
 
-                print(dt)
+                rospy.loginfo('dt: %f' % dt)
                 positional_error = get_direction(self.finger_pose, self.target_pose)
 
                 q_t = quat_from_orientation(self.target_pose.pose.orientation)
@@ -139,11 +142,16 @@ class Tracker:
                 q_r = quaternion_multiply( q_t , quaternion_inverse(q_f))
                 angular_error, ax, ay, az =angle_axis(q_r)
 
-                print("Target pose: " + pose2sting(self.target_pose.pose))
-                print("Finger pose: " + pose2sting(self.finger_pose.pose))
+                rospy.loginfo("Target  pose: " + pose2sting(self.target_pose.pose))
+                rospy.loginfo("Current pose: " + pose2sting(self.finger_pose.pose))
 
-                print("Postional error\tx: %fd\ty: %f\tz: %f" % (positional_error[0],positional_error[1],positional_error[2]))
-                print("Angular error: %f" % (angular_error))
+                rospy.loginfo("Postional error x: %fd\ty: %f\tz: %f" % (positional_error[0],positional_error[1],positional_error[2]))
+        
+                rospy.loginfo("Max error           : %f" % (max(positional_error)))
+                rospy.loginfo("positional tolerance: %f" % (self.positional_tolerance))
+
+                rospy.loginfo("Angular error    : %f" % (angular_error))
+                rospy.loginfo("angular tolerance: %f" % (self.angular_tolerance))
 
                 t_l_x = self.x_pid(positional_error[0], dt)
                 t_l_y = self.x_pid(positional_error[1], dt)
@@ -166,11 +174,14 @@ class Tracker:
                 pose_vel.twist.angular.y = t_a_y
                 pose_vel.twist.angular.z = t_a_z 
 
-                print(pose_vel.twist)
+                rospy.loginfo(pose_vel.twist)
                 self.cart_vel_pub.publish(pose_vel)
-                last_time = time
                 rate.sleep()
 
+
+        rospy.loginfo("Servoing fininshed")
+
+        #send zero twist to halt servoing
         pose_vel = TwistStamped()
         pose_vel.header = self.finger_pose.header
         pose_vel.twist.linear.x = 0.0
@@ -180,11 +191,12 @@ class Tracker:
         pose_vel.twist.angular.y = 0.0
         pose_vel.twist.angular.z = 0.0 
 
-        rate = rospy.Rate(self.pub_rate) # 10hz
+        rate = rospy.Rate(self.pub_rate*10) # 10hz
         for i in range(self.num_halt_msgs):
             pose_vel.header.stamp = rospy.Time.now()
             self.cart_vel_pub.publish(pose_vel)
             rate.sleep()
+        rospy.loginfo("Servoing halted")
 
 if __name__ == '__main__':
     track = Tracker()
