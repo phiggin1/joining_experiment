@@ -82,6 +82,10 @@ class Tracker:
         self.pub_rate = 10 #hz
         self.servo_speed = 0.5
 
+        self.num_halt_msgs = 20
+        
+        self.time_out = 30.0
+
         self.x_pid = PID(Kp=1.5, Ki=0.0, Kd=0.0)
         self.y_pid = PID(Kp=1.5, Ki=0.0, Kd=0.0)
         self.z_pid = PID(Kp=1.5, Ki=0.0, Kd=0.0)
@@ -163,10 +167,24 @@ class Tracker:
                 pose_vel.twist.angular.z = t_a_z 
 
                 print(pose_vel.twist)
-                #self.cart_vel_pub.publish(pose_vel)
+                self.cart_vel_pub.publish(pose_vel)
                 last_time = time
                 rate.sleep()
 
+        pose_vel = TwistStamped()
+        pose_vel.header = self.finger_pose.header
+        pose_vel.twist.linear.x = 0.0
+        pose_vel.twist.linear.y = 0.0
+        pose_vel.twist.linear.z = 0.0
+        pose_vel.twist.angular.x = 0.0
+        pose_vel.twist.angular.y = 0.0
+        pose_vel.twist.angular.z = 0.0 
+
+        rate = rospy.Rate(self.pub_rate) # 10hz
+        for i in range(self.num_halt_msgs):
+            pose_vel.header.stamp = rospy.Time.now()
+            self.cart_vel_pub.publish(pose_vel)
+            rate.sleep()
 
 if __name__ == '__main__':
     track = Tracker()

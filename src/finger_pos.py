@@ -45,7 +45,7 @@ finger2 = "j2n6s300_link_finger_tip_2"
 #effector = "j2n6s300_end_effector"
 effector = "j2n6s300_link_6"
 base = "base_link"
-finger_tip_offset = 0.0825
+finger_tip_offset = 0.0425
 
 
 
