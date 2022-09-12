@@ -8,6 +8,7 @@ from kinova_msgs.msg import PoseVelocity
 from tf.transformations import euler_from_quaternion, quaternion_from_euler, quaternion_inverse, quaternion_multiply
 import numpy as np
 from simple_pid import PID
+from joining_experiment.srv import JoiningServo, JoiningServoResponse
 
 def get_direction(p1, p2):
     x = p1.pose.position.x - p2.pose.position.x
@@ -86,14 +87,13 @@ class Tracker:
 
         self.time_out = 30.0
 
-        self.x_pid = PID(Kp=1.5, Ki=0.0, Kd=0.0)
-        self.y_pid = PID(Kp=1.5, Ki=0.0, Kd=0.0)
-        self.z_pid = PID(Kp=1.5, Ki=0.0, Kd=0.0)
-        self.theta_pid = PID(Kp=0.5, Ki=0.0, Kd=0.0)
 
         self.finger_sub = rospy.Subscriber('/test/finger_pose', PoseStamped, self.get_finger_pose)
         self.target_sub = rospy.Subscriber('/target/target', PoseStamped, self.get_target_pose)
         self.cart_vel_pub = rospy.Publisher('/servo_server/delta_twist_cmds', TwistStamped, queue_size=10)
+
+        self.service = rospy.Service('JoiningServo', JoiningServo, self.experiment)
+        rospy.spin()
 
     def get_finger_pose(self, pose):
         t = rospy.Time.now()
@@ -117,10 +117,15 @@ class Tracker:
                 abs(z_err) < self.positional_tolerance and
                 abs(angular_error) < self.angular_tolerance)
 
-    def experiment(self):
+    def experiment(self, req):
         positional_error = [9999.9,9999.9,9999.9]
         angular_error = 9999.9
         last_time = None
+
+        self.x_pid = PID(Kp=1.5, Ki=0.0, Kd=0.0)
+        self.y_pid = PID(Kp=1.5, Ki=0.0, Kd=0.0)
+        self.z_pid = PID(Kp=1.5, Ki=0.0, Kd=0.0)
+        self.theta_pid = PID(Kp=0.5, Ki=0.0, Kd=0.0)
 
 
         rate = rospy.Rate(self.pub_rate) # 10hz
@@ -196,9 +201,10 @@ class Tracker:
             pose_vel.header.stamp = rospy.Time.now()
             self.cart_vel_pub.publish(pose_vel)
             rate.sleep()
+
         rospy.loginfo("Servoing halted")
+        return JoiningServoResponse(True)
 
 if __name__ == '__main__':
     track = Tracker()
-    #while not rospy.is_shutdown():
-    track.experiment()
+    #track.experiment()

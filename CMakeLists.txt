@@ -13,8 +13,6 @@ set(SERVO_LIB_NAME moveit_servo_cpp_api)
 find_package(Boost REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
-  control_msgs
-  control_toolbox
   geometry_msgs
   moveit_servo
   moveit_msgs
@@ -25,16 +23,57 @@ find_package(catkin REQUIRED COMPONENTS
   std_srvs
   tf2_eigen
   trajectory_msgs
+  message_generation
 )
 
 
+################################################
+## Declare ROS messages, services and actions ##
+################################################
+
+## To declare and build messages, services or actions from within this
+## package, follow these steps:
+## * Let MSG_DEP_SET be the set of packages whose message types you use in
+##   your messages/services/actions (e.g. std_msgs, actionlib_msgs, ...).
+## * In the file package.xml:
+##   * add a build_depend tag for "message_generation"
+##   * add a build_depend and a run_depend tag for each package in MSG_DEP_SET
+##   * If MSG_DEP_SET isn't empty the following dependency has been pulled in
+##     but can be declared for certainty nonetheless:
+##     * add a run_depend tag for "message_runtime"
+## * In this file (CMakeLists.txt):
+##   * add "message_generation" and every package in MSG_DEP_SET to
+##     find_package(catkin REQUIRED COMPONENTS ...)
+##   * add "message_runtime" and every package in MSG_DEP_SET to
+##     catkin_package(CATKIN_DEPENDS ...)
+##   * uncomment the add_*_files sections below as needed
+##     and list every .msg/.srv/.action file to be processed
+##   * uncomment the generate_messages entry below
+##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
+
+## Generate mcessages in the 'msg' folder
+# add_message_files(
+#         FILES
+#   Message2.msg
+# )
+
+## Generate services in the 'srv' folder
+ add_service_files(
+   FILES
+   JoiningServo.srv
+ )
+ 
+## Generate added messages and services with any dependencies listed here
+ generate_messages(
+   DEPENDENCIES
+   std_msgs
+   sensor_msgs
+ )
 catkin_package(
   LIBRARIES
-    pose_tracking
     ${SERVO_LIB_NAME}
   CATKIN_DEPENDS
-    control_msgs
-    control_toolbox
+
     moveit_servo
     geometry_msgs
     moveit_msgs
@@ -45,6 +84,7 @@ catkin_package(
     std_srvs
     tf2_eigen
     trajectory_msgs
+    message_generation
   DEPENDS
     EIGEN3
 )
@@ -59,11 +99,6 @@ include_directories(SYSTEM
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
-
-
-
-
-
 
 
 ###################################
@@ -92,24 +127,17 @@ include_directories(
  ${catkin_INCLUDE_DIRS}
 )
 
-## Declare a C++ library
-# add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/joining_experiment.cpp
-# )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
 # add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-#add_dependencies(joining_pose_tracking  ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
 
 
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/joining_experiment_node.cpp)
-add_executable(joining_pose_tracking src/pose_tracking.cpp)
 
 
 ## Add cmake target dependencies of the executable
@@ -120,20 +148,16 @@ add_executable(joining_pose_tracking src/pose_tracking.cpp)
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
-target_link_libraries(joining_pose_tracking ${catkin_LIBRARIES} )
+
+
 
 
 #############
 ## Install ##
 #############
 
-
-
-
-
 install(
   TARGETS
-    joining_pose_tracking
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

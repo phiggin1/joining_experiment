@@ -10,6 +10,7 @@ from visualization_msgs.msg import Marker
 import festival
 import soundfile as sf
 import json
+from joining_experiment.srv import JoiningServo, JoiningServoResponse
 
 def quaternion_from_msg(orientation):
     return [orientation.x, orientation.y, orientation.z, orientation.w]
@@ -55,8 +56,6 @@ class GoToTarget:
         self.target_offset_pub = rospy.Publisher('/target/offset_target_pos', PoseStamped, queue_size=10)
         self.grab = rospy.Publisher('buttons', String, queue_size=10)
         self.rivr_robot_speech = rospy.Publisher('/robotspeech', String, queue_size=10)
-
-
 
         self.interactive = True
 
@@ -144,20 +143,6 @@ class GoToTarget:
         self.listener.waitForTransform(target.header.frame_id, self.planning_frame, t, rospy.Duration(4.0) )
         goal_pose = self.listener.transformPose(self.planning_frame, target)
 
-        
-        '''
-        print( goal_pose.pose.orientation.z )
-        print('------------')
-        if goal_pose.pose.orientation.z > 0:
-            print('green robot right')
-            sign = -1.0
-        else:
-            print('green robot left')
-            sign = 1.0
-        '''
-
-        #goal_pose.pose.position.x -= self.hand_finger_offset_x
-        #goal_pose.pose.position.y += (sign*self.hand_finger_offest_y)
         print('init goal')
         print(goal_pose.pose.position.z)
         print(self.hand_finger_offest_z)        
@@ -182,6 +167,14 @@ class GoToTarget:
         print(finger_positions)
         self.hand_move_group.go(finger_positions, wait=True)
 
+    def servo(self):
+        rospy.wait_for_service('JoiningServo')
+        try:
+            joining_servo = rospy.ServiceProxy('JoiningServo', JoiningServo)
+            resp = joining_servo()
+            return resp.resp
+        except rospy.ServiceException as e:
+            print("Service call failed: %s"%e)
 
     def experiment(self):
         self.failures = 0
@@ -244,15 +237,11 @@ class GoToTarget:
             self.move_arm(goal_pose, 1.0)
             
 
-            final_pose = self.get_target()
-            print('goal final')
-            print(final_pose.pose.position)
-            self.target_offset_pub.publish(final_pose)
-            
+
             if self.interactive:
                 i = raw_input("Move to final, Press Enter to continue...")
-            
-            self.move_arm(final_pose, 1.0)
+            self.servo()
+
             
             #check if should open hand
             if self.interactive:
