@@ -1,7 +1,7 @@
 ###############################################
 # Modify all parameters related to servoing here
 ###############################################
-use_gazebo: true # Whether the robot is started in a Gazebo simulation environment
+use_gazebo: false # Whether the robot is started in a Gazebo simulation environment
 
 ## Properties of incoming commands
 command_in_type: "speed_units" # "unitless"> in the range [-1:1], as if from joystick. "speed_units"> cmds are in m/s and rad/s
@@ -14,7 +14,7 @@ scale:
 low_pass_filter_coeff: 2.  # Larger --> trust the filtered data more, trust the measurements less.
 
 ## Properties of outgoing commands
-publish_period: 0.05      # 1/Nominal publish rate [seconds]
+publish_period: 0.1      # 1/Nominal publish rate [seconds]
 low_latency_mode: false  # Set this to true to publish as soon as an incoming Twist command is received (publish_period is ignored)
 
 # What type of topic does your robot driver expect?
@@ -52,11 +52,11 @@ joint_limit_margin: 0.1 # added as a buffer to joint limits [radians]. If moving
 ## Topic names
 cartesian_command_in_topic: delta_twist_cmds  # Topic for incoming Cartesian twist commands
 joint_command_in_topic: delta_joint_cmds # Topic for incoming joint angle commands
-#joint_topic: /j2n6s300/joint_states 
-joint_topic: /joint_states
+joint_topic: /j2n6s300/joint_states 
+#joint_topic: /joint_states
 
 status_topic: status # Publish status to this topic
-command_out_topic: /j2n6s300/effort_joint_trajectory_controller/command # Publish outgoing commands here
+command_out_topic:  # Publish outgoing commands here
 #command_out_topic: /j2n6s300/joint_group_position_controller/command # Publish outgoing commands here
 
 ## Collision checking for the entire robot body

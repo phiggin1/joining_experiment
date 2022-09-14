@@ -10,6 +10,7 @@ import image_geometry
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import PointCloud2
 import sensor_msgs.point_cloud2 as pc2
+from joining_experiment.msg import JoinPose
 from geometry_msgs.msg import PoseStamped
 from tf.transformations import quaternion_from_euler
 
@@ -78,7 +79,16 @@ class GetTargetPose:
         self.cathode_min = np.array([cath_min_b, cath_min_g, cath_min_r])
         self.cathode_max = np.array([cath_max_b, cath_max_g, cath_max_r])
 
-        self.depth_cam_info = rospy.wait_for_message("/camera/unityrgb/camera_info", CameraInfo, timeout=None)
+        is_sim = rospy.get_param("rivr", True)
+        if is_sim:
+            self.depth_cam_info = rospy.wait_for_message("/camera/unityrgb/camera_info", CameraInfo, timeout=None)
+            self.rgb_image_sub = message_filters.Subscriber('/camera/unityrgb/image_raw', Image)
+            self.depth_image_sub = message_filters.Subscriber('/camera/unitydepth/image_raw', Image)
+        else:
+            self.depth_cam_info = rospy.wait_for_message("/kinect2/sd/camera_info", CameraInfo, timeout=None)
+            self.rgb_image_sub = message_filters.Subscriber('/kinect2/sd/image_color_rect', Image)
+            self.depth_image_sub = message_filters.Subscriber('/kinect2/sd/image_depth_rect', Image)
+
         self.cam_model = image_geometry.PinholeCameraModel()
         self.cam_model.fromCameraInfo(self.depth_cam_info)
 
@@ -86,11 +96,8 @@ class GetTargetPose:
         self.anode_pc_pub = rospy.Publisher('/target/pc_a', PointCloud2, queue_size=10)
         self.cathode_pc_pub = rospy.Publisher('/target/pc_c', PointCloud2, queue_size=10)
 
-        self.target_pub = rospy.Publisher('/target/target', PoseStamped, queue_size=10)
-
-        self.rgb_image_sub = message_filters.Subscriber('/camera/unityrgb/image_raw', Image)
-        self.depth_image_sub = message_filters.Subscriber('/camera/unitydepth/image_raw', Image)
-
+        self.target_pub = rospy.Publisher('/target/target', JoinPose, queue_size=10)
+        self.pose_stamped_pub = rospy.Publisher('/target/pose_stamped', PoseStamped, queue_size=10)
         self.ts = message_filters.ApproximateTimeSynchronizer([self.rgb_image_sub, self.depth_image_sub], 10, slop=2.0)
         self.ts.registerCallback(self.callback)
 
@@ -127,19 +134,35 @@ class GetTargetPose:
 
             #self.show_image(img)
         
+        target = JoinPose()
+        target.header = depth_ros_image.header
+        target.near.data = True
+        target.see_cathode.data = True
+        target.see_anode.data = True
+
+        anode_has_points = True
         try:
             an_cent = self.get_centroid(points_anode)
+        except (ZeroDivisionError, TypeError): 
+            target.see_anode.data = False
+            anode_has_points = False
+            rospy.loginfo("Empty anode pointcloud")
+
+        cathode_has_points = True
+        try:       
             cath_cent = self.get_centroid(points_cathode)
+        except (ZeroDivisionError, TypeError): 
+            target.see_cathode.data = False
+            cathode_has_points = False
+            rospy.loginfo("Empty anode pointcloud")
+
+        if anode_has_points and cathode_has_points:
             a = (an_cent[0] - cath_cent[0], an_cent[1] - cath_cent[1], an_cent[2] - cath_cent[2])
 
             pa = an_cent
             pc = cath_cent
             d = dist(an_cent, cath_cent)
 
-            '''
-            d, pa, pc = self.get_closest_points(points_anode, points_cathode)
-            #a = (pa[0]-pc[0], pa[1]-pc[1], pa[2]-pc[2])
-            '''
             b = (0,0,1)
 
             #yaw (in kinect frame around y axis)
@@ -149,8 +172,28 @@ class GetTargetPose:
 
             quat = quaternion_from_euler(math.pi/2.0, theta-(math.pi/2.0), 0.0 )
 
-            target = PoseStamped()
-            target.header = depth_ros_image.header
+            if d > self.led_width+2*self.putty_width:
+                #rospy.loginfo(d, self.led_width+2*self.putty_width)
+                rospy.loginfo("Anode and cathode to far away")
+                target.near.data = False
+                
+            #rospy.loginfo('=====================')
+            #rospy.loginfo(pa)
+            #rospy.loginfo(pc)
+            #rospy.loginfo("positon:     x:%.4f\ty:%.4f\tz:%.4f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
+            #rospy.loginfo("orientation: x:%.4f\ty:%.4f\tz:%.4f\tw:%.4f" % (target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z, target.pose.orientation.w))
+            
+            stamped_pose = PoseStamped()
+            stamped_pose.header = depth_ros_image.header
+            stamped_pose.pose.position.x = target.pose.position.x
+            stamped_pose.pose.position.y = target.pose.position.y
+            stamped_pose.pose.position.z = target.pose.position.z
+            stamped_pose.pose.orientation.x = target.pose.orientation.x
+            stamped_pose.pose.orientation.y = target.pose.orientation.y
+            stamped_pose.pose.orientation.z = target.pose.orientation.z
+            stamped_pose.pose.orientation.w = target.pose.orientation.w
+            self.pose_stamped_pub.publish(stamped_pose)
+
             target.pose.position.x = (pa[0]+pc[0])/2.0
             target.pose.position.y = (pa[1]+pc[1])/2.0 
             target.pose.position.z = (pa[2]+pc[2])/2.0
@@ -159,24 +202,10 @@ class GetTargetPose:
             target.pose.orientation.z = quat[2]
             target.pose.orientation.w = quat[3]
         
-            #rospy.loginfo('=====================')
-            #rospy.loginfo(pa)
-            #rospy.loginfo(pc)
-            #rospy.loginfo(an_cent)
-            #rospy.loginfo(cath_cent)
-            #rospy.loginfo(theta*180/np.pi)
-            #rospy.loginfo("positon:     x:%.4f\ty:%.4f\tz:%.4f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
-            #rospy.loginfo("orientation: x:%.4f\ty:%.4f\tz:%.4f\tw:%.4f" % (target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z, target.pose.orientation.w))
+        self.target_pub.publish(target)
 
-            self.target_pub.publish(target)
 
-            if d > self.led_width+2*self.putty_width:
-                #rospy.loginfo(d)
-                #rospy.loginfo(self.led_width+2*self.putty_width)
-                rospy.loginfo("Anode and cathode to far away")
 
-        except (ZeroDivisionError, TypeError): 
-            rospy.loginfo("Empty anode or cathode pointcloud")
 
 
     def get_pointcloud(self, depth_masked):
@@ -217,8 +246,8 @@ class GetTargetPose:
             count += 1
 
         cent_x = cent_x/count
-        cent_y = min_y#cent_y/count
-        cent_z = cent_z/count #max_z
+        cent_y = min_y #+ .01 #cent_y/count #min_y
+        cent_z = (cent_z/count) + .015 #max_z
 
         return [cent_x,cent_y,cent_z]
 

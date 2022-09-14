@@ -4,13 +4,13 @@ import rospy
 import tf
 import math
 from geometry_msgs.msg import PoseStamped, TwistStamped
-from kinova_msgs.msg import PoseVelocity
+from joining_experiment.msg import JoinPose
 from tf.transformations import euler_from_quaternion, quaternion_from_euler, quaternion_inverse, quaternion_multiply
 import numpy as np
 from simple_pid import PID
 from joining_experiment.srv import JoiningServo, JoiningServoResponse
 
-def get_direction(p1, p2):
+def get_position_error(p1, p2):
     x = p1.pose.position.x - p2.pose.position.x
     y = p1.pose.position.y - p2.pose.position.y
     z = p1.pose.position.z - p2.pose.position.z
@@ -55,7 +55,6 @@ def angle_axis(q):
     qz = q[2]
     qw = q[3]
 
-
     sqrt_q = math.sqrt( qx**2 + qy**2 + qz**2 )
 
     ax = qx/sqrt_q
@@ -68,28 +67,46 @@ def angle_axis(q):
 
 class Tracker:
     def __init__(self):
-        rospy.init_node('track', anonymous=True)
+        rospy.init_node('joining_pose_tracking', anonymous=True)
 
         self.target_pose = None
         self.finger_pose = None
         self.base_frame = 'base_link'
-        #self.base_frame = 'root'
 
         self.listener = tf.TransformListener()
 
         self.positional_tolerance = 0.01
         self.angular_tolerance = 0.1
 
-        self.pub_rate = 10 #hz
-        self.servo_speed = 0.5
+        self.pub_rate = 20 #hz
 
         self.num_halt_msgs = 20
 
-        self.time_out = 30.0
+        self.time_out = 20.0
 
+        #proportional gains  
+        self.cart_x_kp = 1.5
+        self.cart_y_kp = 1.5
+        self.cart_z_kp = 1.5
+
+        self.angular_kp = 0.5
+
+        #integral gains
+        self.cart_x_ki = 0.0
+        self.cart_y_ki = 0.0
+        self.cart_z_ki = 0.0
+
+        self.angular_ki = 0.0
+
+        #derivative gains
+        self.cart_x_kd = 0.0
+        self.cart_y_kd = 0.0
+        self.cart_z_kd = 0.0
+
+        self.angular_kd = 0.0
 
         self.finger_sub = rospy.Subscriber('/test/finger_pose', PoseStamped, self.get_finger_pose)
-        self.target_sub = rospy.Subscriber('/target/target', PoseStamped, self.get_target_pose)
+        self.target_sub = rospy.Subscriber('/target/target', JoinPose, self.get_target_pose)
         self.cart_vel_pub = rospy.Publisher('/servo_server/delta_twist_cmds', TwistStamped, queue_size=10)
 
         self.service = rospy.Service('JoiningServo', JoiningServo, self.experiment)
@@ -102,10 +119,14 @@ class Tracker:
         self.finger_pose = self.listener.transformPose(self.base_frame, pose)
 
     def get_target_pose(self, pose):
+        p = PoseStamped()
+        p.header = pose.header
+        p.pose = pose.pose
+        
         t = rospy.Time.now()
         pose.header.stamp = t
-        self.listener.waitForTransform(pose.header.frame_id, self.base_frame, t, rospy.Duration(4.0) )
-        self.target_pose = self.listener.transformPose(self.base_frame, pose)
+        self.listener.waitForTransform(p.header.frame_id, self.base_frame, t, rospy.Duration(4.0) )
+        self.target_pose = self.listener.transformPose(self.base_frame, p)
 
     def satisfy_tolerance(self, angular_error, positional_error):
         x_err = positional_error[0]
@@ -120,48 +141,54 @@ class Tracker:
     def experiment(self, req):
         positional_error = [9999.9,9999.9,9999.9]
         angular_error = 9999.9
-        last_time = None
 
-        self.x_pid = PID(Kp=1.5, Ki=0.0, Kd=0.0)
-        self.y_pid = PID(Kp=1.5, Ki=0.0, Kd=0.0)
-        self.z_pid = PID(Kp=1.5, Ki=0.0, Kd=0.0)
-        self.theta_pid = PID(Kp=0.5, Ki=0.0, Kd=0.0)
+        self.x_pid = PID(Kp=self.cart_x_kp, Ki=self.cart_x_ki, Kd=self.cart_x_kd)
+        self.y_pid = PID(Kp=self.cart_y_kp, Ki=self.cart_y_ki, Kd=self.cart_y_kd)
+        self.z_pid = PID(Kp=self.cart_z_kp, Ki=self.cart_z_ki, Kd=self.cart_z_kd)
+        self.theta_pid = PID(Kp=self.angular_kp, Ki=self.angular_ki, Kd=self.angular_kd)
 
+        total_time = 0.0
+
+        timed_out = False
 
         rate = rospy.Rate(self.pub_rate) # 10hz
-        while (not self.satisfy_tolerance(angular_error, positional_error)):
+        while (not self.satisfy_tolerance(angular_error, positional_error) and total_time < self.time_out):
             if (self.target_pose is not None and self.finger_pose is not None):
                 time = rospy.Time.now().to_sec()
-
-                if last_time is None:
+                dt = 1.0/self.pub_rate
+                '''if last_time is None:
                     dt = 0.1
                 else:
-                    dt = abs(time - last_time)
+                    dt = abs(time - last_time)'''
                 last_time = time
+                total_time += dt
+                if total_time > self.time_out:
+                    timed_out = True
 
-                rospy.loginfo('dt: %f' % dt)
-                positional_error = get_direction(self.finger_pose, self.target_pose)
+                positional_error = get_position_error(self.finger_pose, self.target_pose)
 
                 q_t = quat_from_orientation(self.target_pose.pose.orientation)
                 q_f = quat_from_orientation(self.finger_pose.pose.orientation)
                 q_r = quaternion_multiply( q_t , quaternion_inverse(q_f))
-                angular_error, ax, ay, az =angle_axis(q_r)
+                angular_error, ax, ay, az = angle_axis(q_r)
 
+                rospy.loginfo('Elapsed time: %f' % total_time)
                 rospy.loginfo("Target  pose: " + pose2sting(self.target_pose.pose))
                 rospy.loginfo("Current pose: " + pose2sting(self.finger_pose.pose))
 
-                rospy.loginfo("Postional error x: %fd\ty: %f\tz: %f" % (positional_error[0],positional_error[1],positional_error[2]))
-        
-                rospy.loginfo("Max error           : %f" % (max(positional_error)))
+                rospy.loginfo("Postional error    x: %.3f\ty: %.3f\tz: %.3f" % (positional_error[0],positional_error[1],positional_error[2]))
                 rospy.loginfo("positional tolerance: %f" % (self.positional_tolerance))
 
-                rospy.loginfo("Angular error    : %f" % (angular_error))
-                rospy.loginfo("angular tolerance: %f" % (self.angular_tolerance))
+                rospy.loginfo("Angular error       : %f" % (angular_error))
+                rospy.loginfo("angular tolerance   : %f" % (self.angular_tolerance))
 
+                #get twist linear values from PID controllers
                 t_l_x = self.x_pid(positional_error[0], dt)
                 t_l_y = self.x_pid(positional_error[1], dt)
                 t_l_z = self.x_pid(positional_error[2], dt)
 
+                #get twist angular values
+                #   get euler angles from axis angles of quaternion
                 ang_vel_magnitude = self.theta_pid(angular_error, dt)
                 t_a_x = ang_vel_magnitude * ax
                 t_a_y = ang_vel_magnitude * ay
@@ -179,7 +206,7 @@ class Tracker:
                 pose_vel.twist.angular.y = t_a_y
                 pose_vel.twist.angular.z = t_a_z 
 
-                rospy.loginfo(pose_vel.twist)
+                rospy.loginfo("%f\t%f\t%f\t%f\t%f\t%f"%(pose_vel.twist.linear.x,pose_vel.twist.linear.y,pose_vel.twist.linear.z,pose_vel.twist.angular.x,pose_vel.twist.angular.y,pose_vel.twist.angular.z))
                 self.cart_vel_pub.publish(pose_vel)
                 rate.sleep()
 
@@ -196,14 +223,19 @@ class Tracker:
         pose_vel.twist.angular.y = 0.0
         pose_vel.twist.angular.z = 0.0 
 
-        rate = rospy.Rate(self.pub_rate*10) # 10hz
+        rate = rospy.Rate(self.pub_rate) # 10hz
         for i in range(self.num_halt_msgs):
             pose_vel.header.stamp = rospy.Time.now()
             self.cart_vel_pub.publish(pose_vel)
             rate.sleep()
 
         rospy.loginfo("Servoing halted")
-        return JoiningServoResponse(True)
+        if timed_out:
+            rospy.loginfo("Servoing timed out")
+        else:
+            rospy.loginfo("Servoing took %f seconds" % total_time)
+
+        return JoiningServoResponse(timed_out)
 
 if __name__ == '__main__':
     track = Tracker()

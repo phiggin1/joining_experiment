@@ -52,10 +52,10 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate mcessages in the 'msg' folder
-# add_message_files(
-#         FILES
-#   Message2.msg
-# )
+ add_message_files(
+    FILES
+    JoinPose.msg
+ )
 
 ## Generate services in the 'srv' folder
  add_service_files(
