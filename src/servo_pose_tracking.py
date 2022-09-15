@@ -7,6 +7,8 @@ from geometry_msgs.msg import PoseStamped, TwistStamped
 from joining_experiment.msg import JoinPose
 from tf.transformations import euler_from_quaternion, quaternion_from_euler, quaternion_inverse, quaternion_multiply
 import numpy as np
+import pandas as pd
+
 from simple_pid import PID
 from joining_experiment.srv import JoiningServo, JoiningServoResponse
 
@@ -82,12 +84,12 @@ class Tracker:
 
         self.num_halt_msgs = 20
 
-        self.time_out = 20.0
+        self.time_out = 25.0
 
         #proportional gains  
         self.cart_x_kp = 1.5
         self.cart_y_kp = 1.5
-        self.cart_z_kp = 1.5
+        self.cart_z_kp = 1250.0
 
         self.angular_kp = 0.5
 
@@ -147,20 +149,37 @@ class Tracker:
         self.z_pid = PID(Kp=self.cart_z_kp, Ki=self.cart_z_ki, Kd=self.cart_z_kd)
         self.theta_pid = PID(Kp=self.angular_kp, Ki=self.angular_ki, Kd=self.angular_kd)
 
+        self.x_pid.output_limits = (-1.0, 1.0)    # Output value will be between 0 and 10
+        self.y_pid.output_limits = (-1.0, 1.0)    # Output value will be between 0 and 10
+        self.z_pid.output_limits = (-10.0, 10.0)    # Output value will be between 0 and 10
+        self.theta_pid.output_limits = (-1.0, 1.0)    # Output value will be between 0 and 10
+
+
         total_time = 0.0
 
         timed_out = False
-
+        data = []
+        df = {
+        'cart_x_kp':self.cart_x_kp,
+        'cart_y_kp':self.cart_y_kp,
+        'cart_z_kp':self.cart_z_kp,
+        'angular_kp':self.angular_kp,
+        'cart_x_ki':self.cart_x_ki,
+        'cart_y_ki':self.cart_y_ki,
+        'cart_z_ki':self.cart_z_ki,
+        'angular_ki':self.angular_ki,
+        'cart_x_kd':self.cart_x_kd,
+        'cart_y_kd':self.cart_y_kd,
+        'cart_z_kd':self.cart_z_kd,
+        'angular_kd':self.angular_kd
+        }
+        data.append(df)
         rate = rospy.Rate(self.pub_rate) # 10hz
         while (not self.satisfy_tolerance(angular_error, positional_error) and total_time < self.time_out):
             if (self.target_pose is not None and self.finger_pose is not None):
                 time = rospy.Time.now().to_sec()
                 dt = 1.0/self.pub_rate
-                '''if last_time is None:
-                    dt = 0.1
-                else:
-                    dt = abs(time - last_time)'''
-                last_time = time
+                
                 total_time += dt
                 if total_time > self.time_out:
                     timed_out = True
@@ -205,13 +224,27 @@ class Tracker:
                 pose_vel.twist.angular.x = t_a_x
                 pose_vel.twist.angular.y = t_a_y
                 pose_vel.twist.angular.z = t_a_z 
-
+                dataframe = {
+                    'time':rospy.Time.now().to_sec(),
+                    'twist.linear.x':pose_vel.twist.linear.x,
+                    'twist.linear.y':pose_vel.twist.linear.y,
+                    'twist.linear.z':pose_vel.twist.linear.z,
+                    'twist.angular.x':pose_vel.twist.angular.x,
+                    'twist.angular.y':pose_vel.twist.angular.y,
+                    'twist.angular.z':pose_vel.twist.angular.z
+                }
+                data.append(dataframe)
                 rospy.loginfo("%f\t%f\t%f\t%f\t%f\t%f"%(pose_vel.twist.linear.x,pose_vel.twist.linear.y,pose_vel.twist.linear.z,pose_vel.twist.angular.x,pose_vel.twist.angular.y,pose_vel.twist.angular.z))
                 self.cart_vel_pub.publish(pose_vel)
                 rate.sleep()
 
-
-        rospy.loginfo("Servoing fininshed")
+        a = 'finished'
+        if timed_out:
+            a = 'timed_out'
+        fname = str(rospy.Time.now().to_sec())+'_'+a+'_twist.csv'
+        twist_csv = pd.DataFrame(data)
+        twist_csv.to_csv(fname, index=False)
+        print('wrote to: '+fname)
 
         #send zero twist to halt servoing
         pose_vel = TwistStamped()
@@ -229,7 +262,6 @@ class Tracker:
             self.cart_vel_pub.publish(pose_vel)
             rate.sleep()
 
-        rospy.loginfo("Servoing halted")
         if timed_out:
             rospy.loginfo("Servoing timed out")
         else:

@@ -45,21 +45,21 @@ class GetTargetPose:
         rospy.init_node('GetTargetPose', anonymous=True)
         self.bridge = CvBridge()
 
-        #cathode = negative black terminal (green putty)
-        cath_min_r = rospy.get_param("cath_min_r", 0)
-        cath_max_r = rospy.get_param("cath_max_r", 64)
-        cath_min_g = rospy.get_param("cath_min_g", 80)
-        cath_max_g = rospy.get_param("cath_max_g", 255)
-        cath_min_b = rospy.get_param("cath_min_b", 0)
-        cath_max_b = rospy.get_param("cath_max_b", 64)
+        #anode = negative black terminal (green putty)
+        an_min_r = rospy.get_param("cath_min_r", 0)
+        an_max_r = rospy.get_param("cath_max_r", 64)
+        an_min_g = rospy.get_param("cath_min_g", 80)
+        an_max_g = rospy.get_param("cath_max_g", 255)
+        an_min_b = rospy.get_param("cath_min_b", 0)
+        an_max_b = rospy.get_param("cath_max_b", 64)
 
-        #anode = positive red terminal (red putty)
-        an_min_r = rospy.get_param("an_min_r", 100)
-        an_max_r = rospy.get_param("an_max_r", 255)
-        an_min_g = rospy.get_param("an_min_g", 0)
-        an_max_g = rospy.get_param("an_max_g", 64)
-        an_min_b = rospy.get_param("an_min_b", 0)
-        an_max_b = rospy.get_param("an_max_b", 64)
+        #cathode = positive red terminal (red putty)
+        cath_min_r = rospy.get_param("an_min_r", 100)
+        cath_max_r = rospy.get_param("an_max_r", 255)
+        cath_min_g = rospy.get_param("an_min_g", 0)
+        cath_max_g = rospy.get_param("an_max_g", 64)
+        cath_min_b = rospy.get_param("an_min_b", 0)
+        cath_max_b = rospy.get_param("an_max_b", 64)
 
         #Min and max distance to consider for anode cathode positions in mm
         self.min_depth = rospy.get_param("min_depth", 400)
@@ -139,12 +139,21 @@ class GetTargetPose:
         target.near.data = True
         target.see_cathode.data = True
         target.see_anode.data = True
+        target.pose.position.x = 0.0
+        target.pose.position.y = 0.0
+        target.pose.position.z = 0.0
+        target.pose.orientation.x = 0.0
+        target.pose.orientation.y = 0.0
+        target.pose.orientation.z = 0.0
+        target.pose.orientation.w = 0.0
+        
 
         anode_has_points = True
         try:
             an_cent = self.get_centroid(points_anode)
         except (ZeroDivisionError, TypeError): 
             target.see_anode.data = False
+            target.near.data = False
             anode_has_points = False
             rospy.loginfo("Empty anode pointcloud")
 
@@ -153,8 +162,9 @@ class GetTargetPose:
             cath_cent = self.get_centroid(points_cathode)
         except (ZeroDivisionError, TypeError): 
             target.see_cathode.data = False
+            target.near.data = False
             cathode_has_points = False
-            rospy.loginfo("Empty anode pointcloud")
+            rospy.loginfo("Empty cathode pointcloud")
 
         if anode_has_points and cathode_has_points:
             a = (an_cent[0] - cath_cent[0], an_cent[1] - cath_cent[1], an_cent[2] - cath_cent[2])
@@ -246,7 +256,7 @@ class GetTargetPose:
             count += 1
 
         cent_x = cent_x/count
-        cent_y = min_y #+ .01 #cent_y/count #min_y
+        cent_y = min_y + .01 #cent_y/count #min_y
         cent_z = (cent_z/count) + .015 #max_z
 
         return [cent_x,cent_y,cent_z]

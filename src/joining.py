@@ -37,10 +37,10 @@ class GoToTarget:
 
         self.finger_full_open = 0.0
         self.finger_open = 1.1
-        self.finger_Full_closed = 1.3
+        self.finger_full_closed = 1.2
 
         self.hand_open = [self.finger_open, self.finger_open, self.finger_full_open]
-        self.hand_closed = [self.finger_Full_closed, self.finger_Full_closed, self.finger_full_open]
+        self.hand_closed = [self.finger_full_closed, self.finger_full_closed, self.finger_full_open]
 
         self.standoff_distance = 0.15       #m
         self.hand_finger_offset_x = 0.0     #0.035   #m
@@ -58,15 +58,25 @@ class GoToTarget:
         self.hand_over_pose.pose.orientation.z =  0.5
         self.hand_over_pose.pose.orientation.w =  0.5
 
+        self.hand_over_pose_retreat = PoseStamped()
+        self.hand_over_pose_retreat.header.frame_id = "base_link"
+        self.hand_over_pose_retreat.pose.position.x =  0.50
+        self.hand_over_pose_retreat.pose.position.y = -0.08
+        self.hand_over_pose_retreat.pose.position.z =  0.95
+        self.hand_over_pose_retreat.pose.orientation.x = -0.5
+        self.hand_over_pose_retreat.pose.orientation.y = -0.5
+        self.hand_over_pose_retreat.pose.orientation.z =  0.5
+        self.hand_over_pose_retreat.pose.orientation.w =  0.5
+
         self.intial_pose = PoseStamped()
         self.intial_pose.header.frame_id = "base_link"
         self.intial_pose.pose.position.x =  0.55
         self.intial_pose.pose.position.y = -0.08
         self.intial_pose.pose.position.z =  0.95
-        self.intial_pose.pose.orientation.x = 0.0
-        self.intial_pose.pose.orientation.y = 0.0
+        self.intial_pose.pose.orientation.x =  0.0
+        self.intial_pose.pose.orientation.y =  0.0
         self.intial_pose.pose.orientation.z = -0.707
-        self.intial_pose.pose.orientation.w = 0.707
+        self.intial_pose.pose.orientation.w =  0.707
 
         self.listener = tf.TransformListener()
         
@@ -91,12 +101,6 @@ class GoToTarget:
         self.hand_move_group.set_goal_position_tolerance(self.goal_tolerance)
 
         self.planning_frame = self.arm_move_group.get_planning_frame()
-        self.eef_link = self.arm_move_group.get_end_effector_link()
-        self.group_names = self.robot.get_group_names()
-
-        self.display_trajectory_publisher = rospy.Publisher('/move_group/display_planned_path',
-                                                    moveit_msgs.msg.DisplayTrajectory,
-                                                    queue_size=20)
 
     def talk(self, str):
         print("Saying: " + str)
@@ -115,6 +119,7 @@ class GoToTarget:
         see_anode = False
         see_cathode = False
         last_time_spoke = None
+
         while (target is None or not near or not see_anode or not see_cathode) and count < self.retry_times:
             try:
                 target = rospy.wait_for_message(self.target_topic, JoinPose, timeout=5.0)
@@ -122,15 +127,22 @@ class GoToTarget:
                 see_anode = target.see_anode.data
                 see_cathode = target.see_cathode.data
 
-                if not near and (last_time_spoke is None or rospy.Time.now().to_sec() > last_time_spoke+5.0):
+                now = rospy.Time.now().to_sec()
+                if not near and (last_time_spoke is None or now > last_time_spoke+5.0):
                     self.talk("Can you please move the putty closer together?")
                     last_time_spoke = rospy.Time.now().to_sec()
-                    
-                if not see_anode and (last_time_spoke is None or rospy.Time.now().to_sec() > last_time_spoke+5.0):
+                
+                if not see_anode and not see_cathode and (last_time_spoke is None or now > last_time_spoke+5.0):
+                    print(last_time_spoke, now)
+                    self.talk("Can you please move the red and green putty to where I can see tem?")
+                    last_time_spoke = rospy.Time.now().to_sec()
+
+                if not see_anode and (last_time_spoke is None or now > last_time_spoke+5.0):
+                    print(last_time_spoke, now)
                     self.talk("Can you please move the green putty where I can see it?")
                     last_time_spoke = rospy.Time.now().to_sec()
 
-                if not see_cathode and (last_time_spoke is None or rospy.Time.now().to_sec() > last_time_spoke+5.0):
+                if not see_cathode and (last_time_spoke is None or now > last_time_spoke+5.0):
                     self.talk("Can you please move the red putty where I can see it?")
                     last_time_spoke = rospy.Time.now().to_sec()
 
@@ -172,7 +184,7 @@ class GoToTarget:
 
     def experiment(self):
         self.failures = 0
-                
+               
         #move to handover position
         self.move_arm(self.hand_over_pose, 1.0)
         print('open fingers')
@@ -185,33 +197,34 @@ class GoToTarget:
         
         #wait for LED to be given then close hand
         if self.interactive:
-            raw_input("Hand over led, Press Enter to continue...")
+            raw_input("\nHand over led, Press Enter to continue...")
         
+        #give acknowledgement?
+        self.talk("thank you")
         self.grab.publish("grabbed")
-        print('closed fingers')
+        print('\nclosed fingers')
         self.move_fingers(self.hand_closed)
-              
-
+        self.move_arm(self.hand_over_pose_retreat, 1.0)
+            
         #move to intial positon above
         self.move_arm(self.intial_pose, 1.0)
-
         
         #give instructions
         if self.interactive:
             self.talk("place the lead of the red wire into the red putty")
-            raw_input("Press Enter to continue...")
+            raw_input("\nPress Enter to continue...")
 
             self.talk("place the lead of the black wire into the green putty")
-            raw_input("Press Enter to continue...")
+            raw_input("\nPress Enter to continue...")
 
             self.talk("can you hold the two pieces of putty up in front of me?")
-            raw_input("Press Enter to continue...")
+            raw_input("\nPress Enter to continue...")
         
         
         reached_target = False
         while not reached_target:
             if self.interactive:
-                raw_input("waiting for user to present, Press Enter to continue...")
+                raw_input("\nWaiting for user to present, Press Enter to continue...")
 
             standoff_pose = self.get_target()
             standoff_pose.pose.position.z += self.standoff_distance
@@ -227,12 +240,13 @@ class GoToTarget:
             #if self.interactive:
             #    i = raw_input("Move to final, Press Enter to continue...")
             
-            goal_pose = self.get_target()
-            self.move_arm(goal_pose, 1.0)
-            print('standoff')
-            print(goal_pose.pose.position)
+            #moveit mothion planning
+            #goal_pose = self.get_target()
+            #self.move_arm(goal_pose, 1.0)
+            #print('standoff')
+            #print(goal_pose.pose.position)
 
-            #print(self.servo())
+            print(self.servo())
 
             
             #check if should open hand
