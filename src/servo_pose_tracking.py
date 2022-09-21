@@ -82,6 +82,7 @@ class Tracker:
 
         self.pub_rate = 20 #hz
 
+        #number of zero twist halt msgs to send to get servo_server to halt
         self.num_halt_msgs = 20
 
         self.time_out = 25.0
