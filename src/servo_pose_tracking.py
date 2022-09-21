@@ -87,11 +87,11 @@ class Tracker:
         self.time_out = 25.0
 
         #proportional gains  
-        self.cart_x_kp = rospy.get_param("~cart_x_kp", 2.5)
-        self.cart_y_kp = rospy.get_param("~cart_y_kp", 2.5)
-        self.cart_z_kp = rospy.get_param("~cart_z_kp", 10.0)
+        self.cart_x_kp = rospy.get_param("~cart_x_kp", 20.0)
+        self.cart_y_kp = rospy.get_param("~cart_y_kp", 20.0)
+        self.cart_z_kp = rospy.get_param("~cart_z_kp", 20.0)
 
-        self.angular_kp = rospy.get_param("~angular_kp", 0.75)
+        self.angular_kp = rospy.get_param("~angular_kp", 0.5)
 
         #integral gains
         self.cart_x_ki = rospy.get_param("~cart_x_ki", 0.0)
@@ -144,15 +144,15 @@ class Tracker:
         positional_error = [9999.9,9999.9,9999.9]
         angular_error = 9999.9
 
-        self.x_pid = PID(Kp=self.cart_x_kp, Ki=self.cart_x_ki, Kd=self.cart_x_kd)
-        self.y_pid = PID(Kp=self.cart_y_kp, Ki=self.cart_y_ki, Kd=self.cart_y_kd)
-        self.z_pid = PID(Kp=self.cart_z_kp, Ki=self.cart_z_ki, Kd=self.cart_z_kd)
-        self.theta_pid = PID(Kp=self.angular_kp, Ki=self.angular_ki, Kd=self.angular_kd)
+        x_pid = PID(Kp=self.cart_x_kp, Ki=self.cart_x_ki, Kd=self.cart_x_kd)
+        y_pid = PID(Kp=self.cart_y_kp, Ki=self.cart_y_ki, Kd=self.cart_y_kd)
+        z_pid = PID(Kp=self.cart_z_kp, Ki=self.cart_z_ki, Kd=self.cart_z_kd)
+        theta_pid = PID(Kp=self.angular_kp, Ki=self.angular_ki, Kd=self.angular_kd)
 
-        self.x_pid.output_limits = (-1.0, 1.0)    # Output value will be between 0 and 10
-        self.y_pid.output_limits = (-1.0, 1.0)    # Output value will be between 0 and 10
-        self.z_pid.output_limits = (-10.0, 10.0)    # Output value will be between 0 and 10
-        self.theta_pid.output_limits = (-1.0, 1.0)    # Output value will be between 0 and 10
+        x_pid.output_limits = (-1.0, 1.0)    # Output value will be between 0 and 10
+        y_pid.output_limits = (-1.0, 1.0)    # Output value will be between 0 and 10
+        z_pid.output_limits = (-1.0, 1.0)    # Output value will be between 0 and 10
+        theta_pid.output_limits = (-1.0, 1.0)    # Output value will be between 0 and 10
 
         total_time = 0.0
 
@@ -201,13 +201,13 @@ class Tracker:
                 rospy.loginfo("angular tolerance   : %f" % (self.angular_tolerance))
 
                 #get twist linear values from PID controllers
-                t_l_x = self.x_pid(positional_error[0], dt)
-                t_l_y = self.x_pid(positional_error[1], dt)
-                t_l_z = self.x_pid(positional_error[2], dt)
+                t_l_x = x_pid(positional_error[0], dt)
+                t_l_y = y_pid(positional_error[1], dt)
+                t_l_z = z_pid(positional_error[2], dt)
 
                 #get twist angular values
                 #   get euler angles from axis angles of quaternion
-                ang_vel_magnitude = self.theta_pid(angular_error, dt)
+                ang_vel_magnitude = theta_pid(angular_error, dt)
                 t_a_x = ang_vel_magnitude * ax
                 t_a_y = ang_vel_magnitude * ay
                 t_a_z = ang_vel_magnitude * az
@@ -216,13 +216,13 @@ class Tracker:
                 pose_vel.header = self.finger_pose.header
                 pose_vel.header.stamp = rospy.Time.now()
 
-                pose_vel.twist.linear.x = t_l_x
-                pose_vel.twist.linear.y = t_l_y
-                pose_vel.twist.linear.z = t_l_z
+                pose_vel.twist.linear.x = t_l_x #if abs(positional_error[0]) > 1.2*self.positional_tolerance else 0.0
+                pose_vel.twist.linear.y = t_l_y #if abs(positional_error[1]) > 1.2*self.positional_tolerance else 0.0
+                pose_vel.twist.linear.z = t_l_z #if abs(positional_error[2]) > 1.2*self.positional_tolerance else 0.0
 
-                pose_vel.twist.angular.x = t_a_x
-                pose_vel.twist.angular.y = t_a_y
-                pose_vel.twist.angular.z = t_a_z 
+                pose_vel.twist.angular.x = t_a_x #if abs(angular_error) > 1.2*self.angular_tolerance else 0.0
+                pose_vel.twist.angular.y = t_a_y #if abs(angular_error) > 1.2*self.angular_tolerance else 0.0
+                pose_vel.twist.angular.z = t_a_z #if abs(angular_error) > 1.2*self.angular_tolerance else 0.0
 
                 dataframe = {
                     'time':rospy.Time.now().to_sec(),
@@ -282,7 +282,7 @@ class Tracker:
         else:
             rospy.loginfo("Servoing took %f seconds" % total_time)
 
-        return JoiningServoResponse(timed_out)
+        return JoiningServoResponse(not timed_out)
 
 if __name__ == '__main__':
     track = Tracker()

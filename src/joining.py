@@ -280,7 +280,7 @@ class GoToTarget:
             rospy.loginfo('pre servo')
             print(self.servo())
             rospy.loginfo('post servo')
-
+            
             
             #check if should open hand
             if self.interactive:
