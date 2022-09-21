@@ -25,7 +25,6 @@ class GoToTarget:
         self.grab = rospy.Publisher('buttons', String, queue_size=10)
 
         self.is_sim = rospy.get_param("~rivr", False)
-        print(self.is_sim)
 
         self.rivr_robot_speech = rospy.Publisher('/robotspeech', String, queue_size=10)
 
@@ -37,7 +36,7 @@ class GoToTarget:
 
         self.finger_full_open = 0.0
         self.finger_open = 1.1
-        self.finger_full_closed = 1.2
+        self.finger_full_closed = 1.3
 
         self.hand_open = [self.finger_open, self.finger_open, self.finger_full_open]
         self.hand_closed = [self.finger_full_closed, self.finger_full_closed, self.finger_full_open]
@@ -60,7 +59,7 @@ class GoToTarget:
 
         self.hand_over_pose_retreat = PoseStamped()
         self.hand_over_pose_retreat.header.frame_id = "base_link"
-        self.hand_over_pose_retreat.pose.position.x =  0.50
+        self.hand_over_pose_retreat.pose.position.x =  0.30
         self.hand_over_pose_retreat.pose.position.y = -0.08
         self.hand_over_pose_retreat.pose.position.z =  0.95
         self.hand_over_pose_retreat.pose.orientation.x = -0.5
@@ -70,21 +69,22 @@ class GoToTarget:
 
         self.intial_pose = PoseStamped()
         self.intial_pose.header.frame_id = "base_link"
-        self.intial_pose.pose.position.x =  0.55
+        self.intial_pose.pose.position.x =  0.30
         self.intial_pose.pose.position.y = -0.08
-        self.intial_pose.pose.position.z =  0.95
-        self.intial_pose.pose.orientation.x =  0.0
-        self.intial_pose.pose.orientation.y =  0.0
-        self.intial_pose.pose.orientation.z = -0.707
-        self.intial_pose.pose.orientation.w =  0.707
+        self.intial_pose.pose.position.z =  1.3
+        self.intial_pose.pose.orientation.x = 0.0
+        self.intial_pose.pose.orientation.y = 0.0
+        self.intial_pose.pose.orientation.z = 0.707
+        self.intial_pose.pose.orientation.w = 0.707
 
         self.listener = tf.TransformListener()
         
         if self.is_sim:
             joint_state_topic = ['joint_states:=/joint_states']
         else:
-            joint_state_topic = ['joint_states:=/j2n6s300/joint_states']
+            joint_state_topic = ['joint_states:=/j2n6s300_driver/out/joint_state']
         
+        print(joint_state_topic)
         moveit_commander.roscpp_initialize(joint_state_topic)
 
         self.robot = moveit_commander.RobotCommander()
@@ -102,6 +102,40 @@ class GoToTarget:
 
         self.planning_frame = self.arm_move_group.get_planning_frame()
 
+        rospy.sleep(2)
+        table_pose = PoseStamped()
+        table_pose.header.frame_id = "base_link"
+        table_pose.pose.position.x = 0.0
+        table_pose.pose.position.y = 0.0
+        table_pose.pose.position.z = 0.17
+        table_pose.pose.orientation.w = 1.0
+        table_name = "table"
+        self.scene.add_box(table_name, table_pose, size=(5.0, 5.0, 1.0))
+        print(table_name, self.wait_for_scene_update(table_name, 4))
+
+        person_pose = PoseStamped()
+        person_pose.header.frame_id = "base_link"
+        person_pose.pose.position.x = 1.6
+        person_pose.pose.position.y = 0.0
+        person_pose.pose.position.z = 0.0
+        person_pose.pose.orientation.w = 1.0
+        person_name = "person"
+        self.scene.add_box(person_name, person_pose, size=(1.0, 5.0, 5.0))
+        print(person_name, self.wait_for_scene_update(person_name, 4))
+
+    def wait_for_scene_update(self, name, timeout):
+        start = rospy.get_time()
+
+        seconds = rospy.get_time()
+        while (seconds - start < timeout) and not rospy.is_shutdown():
+                is_known = name in self.scene.get_known_object_names()
+                if is_known:
+                    return True
+                rospy.sleep(0.1)
+                seconds = rospy.get_time()
+
+        return False
+
     def talk(self, str):
         print("Saying: " + str)
         if self.is_sim:
@@ -110,7 +144,8 @@ class GoToTarget:
             string_msg =json.dumps(list(data[0]))
             self.rivr_robot_speech.publish(string_msg)
         else:
-            festival.sayText(str)
+            #festival.sayText(str)
+            print("Saying: " + str)
 
     def get_target(self):
         count = 0
@@ -187,10 +222,10 @@ class GoToTarget:
                
         #move to handover position
         self.move_arm(self.hand_over_pose, 1.0)
+        
         print('open fingers')
         self.move_fingers(self.hand_open)
 
-        
         #LED = l e d
         if self.interactive:
             self.talk("Can you please put the l e d between my fingers? The shorter lead should be on your left.")
@@ -207,7 +242,7 @@ class GoToTarget:
         self.move_arm(self.hand_over_pose_retreat, 1.0)
             
         #move to intial positon above
-        self.move_arm(self.intial_pose, 1.0)
+        #self.move_arm(self.intial_pose, 1.0)
         
         #give instructions
         if self.interactive:
@@ -232,21 +267,18 @@ class GoToTarget:
             print('standoff')
             print(standoff_pose.pose.position)
             
-            #if self.interactive:
-            #    raw_input("Move to standoff, Press Enter to continue...")
-
             self.move_arm(standoff_pose, 1.0)
-               
-            #if self.interactive:
-            #    i = raw_input("Move to final, Press Enter to continue...")
             
+            '''
             #moveit mothion planning
-            #goal_pose = self.get_target()
-            #self.move_arm(goal_pose, 1.0)
-            #print('standoff')
-            #print(goal_pose.pose.position)
-
+            goal_pose = self.get_target()
+            self.move_arm(goal_pose, 1.0)
+            print('standoff')
+            print(goal_pose.pose.position)
+            '''
+            rospy.loginfo('pre servo')
             print(self.servo())
+            rospy.loginfo('post servo')
 
             
             #check if should open hand
@@ -260,14 +292,9 @@ class GoToTarget:
                 else:
                     self.failures += 1
             
-
-            #time.sleep(10.0)
-
             print('standoff')
             print(standoff_pose.pose.position)
             self.move_arm(standoff_pose, 1.0)
-
-            #time.sleep(10.0)
             
         #re home the arm
         self.arm_move_group.set_max_velocity_scaling_factor(1.0)

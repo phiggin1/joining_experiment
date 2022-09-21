@@ -87,25 +87,25 @@ class Tracker:
         self.time_out = 25.0
 
         #proportional gains  
-        self.cart_x_kp = 1.5
-        self.cart_y_kp = 1.5
-        self.cart_z_kp = 1250.0
+        self.cart_x_kp = rospy.get_param("~cart_x_kp", 1.5)
+        self.cart_y_kp = rospy.get_param("~cart_y_kp", 1.5)
+        self.cart_z_kp = rospy.get_param("~cart_z_kp", 1250.0)
 
-        self.angular_kp = 0.5
+        self.angular_kp = rospy.get_param("~angular_kp", 0.5)
 
         #integral gains
-        self.cart_x_ki = 0.0
-        self.cart_y_ki = 0.0
-        self.cart_z_ki = 0.0
+        self.cart_x_ki = rospy.get_param("~cart_x_ki", 0.0)
+        self.cart_y_ki = rospy.get_param("~cart_y_ki", 0.0)
+        self.cart_z_ki = rospy.get_param("~cart_z_ki", 0.0)
 
-        self.angular_ki = 0.0
+        self.angular_ki = rospy.get_param("~angular_ki", 0.0)
 
         #derivative gains
-        self.cart_x_kd = 0.0
-        self.cart_y_kd = 0.0
-        self.cart_z_kd = 0.0
+        self.cart_x_kd = rospy.get_param("~cart_x_kd", 0.0)
+        self.cart_y_kd = rospy.get_param("~cart_y_kd", 0.0)
+        self.cart_z_kd = rospy.get_param("~cart_z_kd", 0.0)
 
-        self.angular_kd = 0.0
+        self.angular_kd = rospy.get_param("~angular_kd", 0.0)
 
         self.finger_sub = rospy.Subscriber('/test/finger_pose', PoseStamped, self.get_finger_pose)
         self.target_sub = rospy.Subscriber('/target/target', JoinPose, self.get_target_pose)
@@ -224,6 +224,7 @@ class Tracker:
                 pose_vel.twist.angular.x = t_a_x
                 pose_vel.twist.angular.y = t_a_y
                 pose_vel.twist.angular.z = t_a_z 
+
                 dataframe = {
                     'time':rospy.Time.now().to_sec(),
                     'twist.linear.x':pose_vel.twist.linear.x,
@@ -231,8 +232,23 @@ class Tracker:
                     'twist.linear.z':pose_vel.twist.linear.z,
                     'twist.angular.x':pose_vel.twist.angular.x,
                     'twist.angular.y':pose_vel.twist.angular.y,
-                    'twist.angular.z':pose_vel.twist.angular.z
+                    'twist.angular.z':pose_vel.twist.angular.z,
+                    'target.pos.x':self.target_pose.pose.position.x,
+                    'target.pos.y':self.target_pose.pose.position.y,
+                    'target.pos.z':self.target_pose.pose.position.z,
+                    'target.rot.x':self.target_pose.pose.orientation.x,
+                    'target.rot.y':self.target_pose.pose.orientation.y,
+                    'target.rot.z':self.target_pose.pose.orientation.z,
+                    'target.rot.w':self.target_pose.pose.orientation.w,
+                    'finger.pos.x':self.finger_pose.pose.position.x,
+                    'finger.pos.y':self.finger_pose.pose.position.y,
+                    'finger.pos.z':self.finger_pose.pose.position.z,
+                    'finger.rot.x':self.finger_pose.pose.orientation.x,
+                    'finger.rot.y':self.finger_pose.pose.orientation.y,
+                    'finger.rot.z':self.finger_pose.pose.orientation.z,
+                    'finger.rot.w':self.finger_pose.pose.orientation.w
                 }
+
                 data.append(dataframe)
                 rospy.loginfo("%f\t%f\t%f\t%f\t%f\t%f"%(pose_vel.twist.linear.x,pose_vel.twist.linear.y,pose_vel.twist.linear.z,pose_vel.twist.angular.x,pose_vel.twist.angular.y,pose_vel.twist.angular.z))
                 self.cart_vel_pub.publish(pose_vel)

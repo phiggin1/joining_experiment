@@ -79,12 +79,14 @@ class GetTargetPose:
         self.cathode_min = np.array([cath_min_b, cath_min_g, cath_min_r])
         self.cathode_max = np.array([cath_max_b, cath_max_g, cath_max_r])
 
-        is_sim = rospy.get_param("rivr", True)
+        is_sim = rospy.get_param("~rivr", True)
         if is_sim:
+            rospy.loginfo("virtual robot")
             self.depth_cam_info = rospy.wait_for_message("/camera/unityrgb/camera_info", CameraInfo, timeout=None)
             self.rgb_image_sub = message_filters.Subscriber('/camera/unityrgb/image_raw', Image)
             self.depth_image_sub = message_filters.Subscriber('/camera/unitydepth/image_raw', Image)
         else:
+            rospy.loginfo("physical robot")
             self.depth_cam_info = rospy.wait_for_message("/kinect2/sd/camera_info", CameraInfo, timeout=None)
             self.rgb_image_sub = message_filters.Subscriber('/kinect2/sd/image_color_rect', Image)
             self.depth_image_sub = message_filters.Subscriber('/kinect2/sd/image_depth_rect', Image)
@@ -183,7 +185,7 @@ class GetTargetPose:
             quat = quaternion_from_euler(math.pi/2.0, theta-(math.pi/2.0), 0.0 )
 
             if d > self.led_width+2*self.putty_width:
-                #rospy.loginfo(d, self.led_width+2*self.putty_width)
+                print(d, self.led_width+2*self.putty_width)
                 rospy.loginfo("Anode and cathode to far away")
                 target.near.data = False
                 
@@ -193,6 +195,14 @@ class GetTargetPose:
             #rospy.loginfo("positon:     x:%.4f\ty:%.4f\tz:%.4f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
             #rospy.loginfo("orientation: x:%.4f\ty:%.4f\tz:%.4f\tw:%.4f" % (target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z, target.pose.orientation.w))
             
+            target.pose.position.x = (pa[0]+pc[0])/2.0
+            target.pose.position.y = (pa[1]+pc[1])/2.0 
+            target.pose.position.z = (pa[2]+pc[2])/2.0
+            target.pose.orientation.x = quat[0]
+            target.pose.orientation.y = quat[1]
+            target.pose.orientation.z = quat[2]
+            target.pose.orientation.w = quat[3]
+
             stamped_pose = PoseStamped()
             stamped_pose.header = depth_ros_image.header
             stamped_pose.pose.position.x = target.pose.position.x
@@ -204,13 +214,6 @@ class GetTargetPose:
             stamped_pose.pose.orientation.w = target.pose.orientation.w
             self.pose_stamped_pub.publish(stamped_pose)
 
-            target.pose.position.x = (pa[0]+pc[0])/2.0
-            target.pose.position.y = (pa[1]+pc[1])/2.0 
-            target.pose.position.z = (pa[2]+pc[2])/2.0
-            target.pose.orientation.x = quat[0]
-            target.pose.orientation.y = quat[1]
-            target.pose.orientation.z = quat[2]
-            target.pose.orientation.w = quat[3]
         
         self.target_pub.publish(target)
 

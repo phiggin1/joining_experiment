@@ -22,10 +22,17 @@ def print_pose(p):
 class GetJacobian:
     def __init__(self):
         self.stop = False
+
         rospy.init_node('jacobian', anonymous=True)
 
-        joint_state_topic = ['joint_states:=/joint_states']
-        #joint_state_topic = ['joint_states:=/j2n6s300/joint_states']
+        self.is_sim = rospy.get_param("~rivr", False)
+        if self.is_sim:
+            joint_state_topic = ['joint_states:=/joint_states']
+        else:
+            joint_state_topic = ['joint_states:=/j2n6s300_driver/out/joint_state']
+
+
+
         moveit_commander.roscpp_initialize(joint_state_topic)
 
 

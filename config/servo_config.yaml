@@ -11,7 +11,7 @@ scale:
   rotational:  0.3 # Max angular velocity. Rads per publish_period. Unit is [rad/s]. Only used for Cartesian commands.
   # Max joint angular/linear velocity. Rads or Meters per publish period. Only used for joint commands on joint_command_in_topic.
   joint: 0.01
-low_pass_filter_coeff: 2.  # Larger --> trust the filtered data more, trust the measurements less.
+low_pass_filter_coeff: 2.0  # Larger --> trust the filtered data more, trust the measurements less.
 
 ## Properties of outgoing commands
 publish_period: 0.05      # 1/Nominal publish rate [seconds]
@@ -52,7 +52,6 @@ joint_limit_margin: 0.1 # added as a buffer to joint limits [radians]. If moving
 ## Topic names
 cartesian_command_in_topic: delta_twist_cmds  # Topic for incoming Cartesian twist commands
 joint_command_in_topic: delta_joint_cmds # Topic for incoming joint angle commands
-#joint_topic: /j2n6s300/joint_states 
 joint_topic: /joint_states
 
 status_topic: status # Publish status to this topic

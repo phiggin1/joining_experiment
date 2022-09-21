@@ -83,3 +83,25 @@ pose:
     y: 0.707
     z: 0.0
     w: 0.0"
+
+
+
+rostopic pub -r 10 -s /target/target joining_experiment/JoinPose "header: 
+  stamp: now
+  frame_id: base_link
+pose:
+  position:
+    x: 0.62
+    y: 0.0
+    z: 1.8
+  orientation:
+    x: -0.707
+    y: 0.707
+    z: 0.0
+    w: 0.0
+near:
+  data: true
+see_anode:
+  data: true
+see_cathode:
+  data: true"
