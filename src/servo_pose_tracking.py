@@ -87,11 +87,11 @@ class Tracker:
         self.time_out = 25.0
 
         #proportional gains  
-        self.cart_x_kp = rospy.get_param("~cart_x_kp", 1.5)
-        self.cart_y_kp = rospy.get_param("~cart_y_kp", 1.5)
-        self.cart_z_kp = rospy.get_param("~cart_z_kp", 1250.0)
+        self.cart_x_kp = rospy.get_param("~cart_x_kp", 2.5)
+        self.cart_y_kp = rospy.get_param("~cart_y_kp", 2.5)
+        self.cart_z_kp = rospy.get_param("~cart_z_kp", 10.0)
 
-        self.angular_kp = rospy.get_param("~angular_kp", 0.5)
+        self.angular_kp = rospy.get_param("~angular_kp", 0.75)
 
         #integral gains
         self.cart_x_ki = rospy.get_param("~cart_x_ki", 0.0)
@@ -153,7 +153,6 @@ class Tracker:
         self.y_pid.output_limits = (-1.0, 1.0)    # Output value will be between 0 and 10
         self.z_pid.output_limits = (-10.0, 10.0)    # Output value will be between 0 and 10
         self.theta_pid.output_limits = (-1.0, 1.0)    # Output value will be between 0 and 10
-
 
         total_time = 0.0
 

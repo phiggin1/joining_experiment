@@ -59,7 +59,7 @@ class GoToTarget:
 
         self.hand_over_pose_retreat = PoseStamped()
         self.hand_over_pose_retreat.header.frame_id = "base_link"
-        self.hand_over_pose_retreat.pose.position.x =  0.30
+        self.hand_over_pose_retreat.pose.position.x =  0.45
         self.hand_over_pose_retreat.pose.position.y = -0.08
         self.hand_over_pose_retreat.pose.position.z =  0.95
         self.hand_over_pose_retreat.pose.orientation.x = -0.5
@@ -69,7 +69,7 @@ class GoToTarget:
 
         self.intial_pose = PoseStamped()
         self.intial_pose.header.frame_id = "base_link"
-        self.intial_pose.pose.position.x =  0.30
+        self.intial_pose.pose.position.x =  0.34
         self.intial_pose.pose.position.y = -0.08
         self.intial_pose.pose.position.z =  1.3
         self.intial_pose.pose.orientation.x = 0.0
@@ -221,6 +221,7 @@ class GoToTarget:
         self.failures = 0
                
         #move to handover position
+        print('hand over pose')
         self.move_arm(self.hand_over_pose, 1.0)
         
         print('open fingers')

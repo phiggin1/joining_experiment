@@ -24,16 +24,16 @@ rospy.sleep(1)
 rate = rospy.Rate(10) # 10hz
 while not rospy.is_shutdown():
     now = rospy.Time.now()
-    tf_listener.waitForTransform(effector, finger1, now, rospy.Duration(4.0))
-    f1_tf = tf_listener.lookupTransform(effector, finger1, now)
-    f2_tf = tf_listener.lookupTransform(effector, finger2, now)
+    #tf_listener.waitForTransform(effector, finger1, now, rospy.Duration(4.0))
+    #f1_tf = tf_listener.lookupTransform(effector, finger1, now)
+    #f2_tf = tf_listener.lookupTransform(effector, finger2, now)
 
     pose = PoseStamped()
     pose.header.frame_id = effector
     pose.header.stamp = now
-    pose.pose.position.x = (f1_tf[0][0]+f2_tf[0][0])/2.0 
-    pose.pose.position.y = (f1_tf[0][1]+f2_tf[0][1])/2.0 
-    pose.pose.position.z = (f1_tf[0][2]+f2_tf[0][2])/2.0 - finger_tip_offset
+    pose.pose.position.x = 0.0 #(f1_tf[0][0]+f2_tf[0][0])/2.0 
+    pose.pose.position.y = 0.0 #(f1_tf[0][1]+f2_tf[0][1])/2.0 
+    pose.pose.position.z = -0.2 #(f1_tf[0][2]+f2_tf[0][2])/2.0 - finger_tip_offset
     pose.pose.orientation.w = 1.0
 
     #print(pose)

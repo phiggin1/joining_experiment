@@ -214,12 +214,7 @@ class GetTargetPose:
             stamped_pose.pose.orientation.w = target.pose.orientation.w
             self.pose_stamped_pub.publish(stamped_pose)
 
-        
         self.target_pub.publish(target)
-
-
-
-
 
     def get_pointcloud(self, depth_masked):
         point_list = []
