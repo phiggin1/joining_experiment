@@ -9,7 +9,7 @@
   <arg name="cath_max_b" default="64" />
 
 
-  <arg name="an_min_r" default="128" />
+  <arg name="an_min_r" default="96" />
   <arg name="an_max_r" default="255" />
 
   <arg name="an_min_g" default="0" />
@@ -19,7 +19,7 @@
   <arg name="an_max_b" default="48" />
 
   <arg name="image" default="/kinect2/sd/image_color_rect" />
-
+  
   <node name="cathode_filter" pkg="opencv_apps" type="rgb_color_filter">
       <remap from="image" to="$(arg image)" />
 

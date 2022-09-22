@@ -4,17 +4,18 @@
        You can modify it in your own package for your own type of gamepad or joystick.
        We do plan to accept pull requests of config files for other controller types using this method.
   -->
+  <!-- cathode green/black -->
   <arg name="cath_min_r" default="0" />
-  <arg name="cath_max_r" default="64" />
+  <arg name="cath_max_r" default="55" />
 
   <arg name="cath_min_g" default="72" />
   <arg name="cath_max_g" default="255" />
 
   <arg name="cath_min_b" default="0" />
-  <arg name="cath_max_b" default="64" />
+  <arg name="cath_max_b" default="55" />
 
-
-  <arg name="an_min_r" default="128" />
+  <!-- anode red -->
+  <arg name="an_min_r" default="96" />
   <arg name="an_max_r" default="255" />
 
   <arg name="an_min_g" default="0" />
@@ -23,33 +24,31 @@
   <arg name="an_min_b" default="0" />
   <arg name="an_max_b" default="48" />
 
-  <node name="track_finger" pkg="joining_experiment" type="get_finger_pose.py" output="screen" ></node>
-
   <node name="get_target" pkg="joining_experiment" type="get_join_target_pose.py" output="screen" >
-      <param name="rivr"  value="false" />
-      <param name="cath_min_r"  value="$(arg cath_min_r)" />
-      <param name="cath_max_r"  value="$(arg cath_max_r)" />
-      <param name="cath_min_g"  value="$(arg cath_min_g)" />
-      <param name="cath_max_g"  value="$(arg cath_max_g)" />
-      <param name="cath_min_b"  value="$(arg cath_min_b)" />
-      <param name="cath_max_b"  value="$(arg cath_max_b)" />
+    <param name="rivr"  value="false" />
+    <param name="cath_min_r"  value="$(arg cath_min_r)" />
+    <param name="cath_max_r"  value="$(arg cath_max_r)" />
+    <param name="cath_min_g"  value="$(arg cath_min_g)" />
+    <param name="cath_max_g"  value="$(arg cath_max_g)" />
+    <param name="cath_min_b"  value="$(arg cath_min_b)" />
+    <param name="cath_max_b"  value="$(arg cath_max_b)" />
 
-      <param name="an_min_r"  value="$(arg an_min_r)" />
-      <param name="an_max_r"  value="$(arg an_max_r)" />
-      <param name="an_min_g"  value="$(arg an_min_g)" />
-      <param name="an_max_g"  value="$(arg an_max_g)" />
-      <param name="an_min_b"  value="$(arg an_min_b)" />
-      <param name="an_max_b"  value="$(arg an_max_b)" />
+    <param name="an_min_r"  value="$(arg an_min_r)" />
+    <param name="an_max_r"  value="$(arg an_max_r)" />
+    <param name="an_min_g"  value="$(arg an_min_g)" />
+    <param name="an_max_g"  value="$(arg an_max_g)" />
+    <param name="an_min_b"  value="$(arg an_min_b)" />
+    <param name="an_max_b"  value="$(arg an_max_b)" />
   </node>
 
-  <!-- This node does the servoing calculations  -->
+  <node name="track_finger" pkg="joining_experiment" type="get_finger_pose.py" output="screen" ></node>
+
   <node name="servo_server" pkg="moveit_servo" type="servo_server" output="screen" >
     <rosparam command="load" file="$(find joining_experiment)/config/servo_config_real.yaml" />
     <remap from="/joint_states" to="/j2n6s300_driver/out/joint_state"/>
   </node>
 
-  <node name="joining_servo" pkg="joining_experiment" type="servo_pose_tracking.py" output="screen" ></node>
-
-  
-
+  <node name="joining_servo" pkg="joining_experiment" type="servo_pose_tracking.py" output="screen" >
+    <param name="rivr"  value="false" />
+  </node>
 </launch>

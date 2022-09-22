@@ -45,24 +45,26 @@ class GetTargetPose:
         rospy.init_node('GetTargetPose', anonymous=True)
         self.bridge = CvBridge()
 
+        self.step = 3
+
         #anode = negative black terminal (green putty)
-        an_min_r = rospy.get_param("cath_min_r", 0)
-        an_max_r = rospy.get_param("cath_max_r", 64)
-        an_min_g = rospy.get_param("cath_min_g", 80)
-        an_max_g = rospy.get_param("cath_max_g", 255)
-        an_min_b = rospy.get_param("cath_min_b", 0)
-        an_max_b = rospy.get_param("cath_max_b", 64)
+        an_min_r = rospy.get_param("~an_min_r", 0)
+        an_max_r = rospy.get_param("~an_max_r", 64)
+        an_min_g = rospy.get_param("~an_min_g", 80)
+        an_max_g = rospy.get_param("~an_max_g", 255)
+        an_min_b = rospy.get_param("~an_min_b", 0)
+        an_max_b = rospy.get_param("~an_max_b", 64)
 
         #cathode = positive red terminal (red putty)
-        cath_min_r = rospy.get_param("an_min_r", 100)
-        cath_max_r = rospy.get_param("an_max_r", 255)
-        cath_min_g = rospy.get_param("an_min_g", 0)
-        cath_max_g = rospy.get_param("an_max_g", 64)
-        cath_min_b = rospy.get_param("an_min_b", 0)
-        cath_max_b = rospy.get_param("an_max_b", 64)
+        cath_min_r = rospy.get_param("~cath_min_r", 100)
+        cath_max_r = rospy.get_param("~cath_max_r", 255)
+        cath_min_g = rospy.get_param("~cath_min_g", 0)
+        cath_max_g = rospy.get_param("~cath_max_g", 64)
+        cath_min_b = rospy.get_param("~cath_min_b", 0)
+        cath_max_b = rospy.get_param("~cath_max_b", 64)
 
         #Min and max distance to consider for anode cathode positions in mm
-        self.min_depth = rospy.get_param("min_depth", 400)
+        self.min_depth = rospy.get_param("min_depth", 550)
         self.max_depth = rospy.get_param("max_depth", 1200)
 
         #width of the led in m
@@ -157,7 +159,7 @@ class GetTargetPose:
             target.see_anode.data = False
             target.near.data = False
             anode_has_points = False
-            rospy.loginfo("Empty anode pointcloud")
+            #rospy.loginfo("Empty anode pointcloud")
 
         cathode_has_points = True
         try:       
@@ -166,7 +168,7 @@ class GetTargetPose:
             target.see_cathode.data = False
             target.near.data = False
             cathode_has_points = False
-            rospy.loginfo("Empty cathode pointcloud")
+            #rospy.loginfo("Empty cathode pointcloud")
 
         if anode_has_points and cathode_has_points:
             a = (an_cent[0] - cath_cent[0], an_cent[1] - cath_cent[1], an_cent[2] - cath_cent[2])
@@ -179,7 +181,7 @@ class GetTargetPose:
 
             #yaw (in kinect frame around y axis)
             theta = np.arccos( dot(a,b)/(norm(a)*norm(b)) )
-            if (a[0] < 0):
+            if (a[0] > 0):
                 theta = -theta
 
             quat = quaternion_from_euler(math.pi/2.0, theta-(math.pi/2.0), 0.0 )
@@ -218,8 +220,8 @@ class GetTargetPose:
 
     def get_pointcloud(self, depth_masked):
         point_list = []
-        for r in range(0, depth_masked.shape[0], 4):
-            for c in range(0, depth_masked.shape[1], 4):
+        for r in range(0, depth_masked.shape[0], self.step):
+            for c in range(0, depth_masked.shape[1], self.step):
                 if depth_masked[r,c]>self.min_depth and depth_masked[r,c]<self.max_depth :
                     d = depth_masked[r,c]/1000.0
                     cx = self.cam_model.cx()
@@ -255,7 +257,7 @@ class GetTargetPose:
 
         cent_x = cent_x/count
         cent_y = min_y + .01 #cent_y/count #min_y
-        cent_z = (cent_z/count) + .015 #max_z
+        cent_z = (cent_z/count) - .005 #max_z
 
         return [cent_x,cent_y,cent_z]
 

@@ -35,16 +35,17 @@ class GoToTarget:
         self.retry_times = 10      
 
         self.finger_full_open = 0.0
-        self.finger_open = 1.1
-        self.finger_full_closed = 1.3
+        self.finger_open = 1.20
+        self.finger_full_closed = 1.325
+
+
+        self.speech_delay = 5.0
 
         self.hand_open = [self.finger_open, self.finger_open, self.finger_full_open]
         self.hand_closed = [self.finger_full_closed, self.finger_full_closed, self.finger_full_open]
 
-        self.standoff_distance = 0.15       #m
-        self.hand_finger_offset_x = 0.0     #0.035   #m
-        self.hand_finger_offest_y = 0.0     #0.01    #m
-        self.hand_finger_offest_z = 0.2     #m
+        self.standoff_distance = 0.35       #m
+
         self.goal_tolerance = 0.0025        #m
 
         self.hand_over_pose = PoseStamped()
@@ -59,7 +60,7 @@ class GoToTarget:
 
         self.hand_over_pose_retreat = PoseStamped()
         self.hand_over_pose_retreat.header.frame_id = "base_link"
-        self.hand_over_pose_retreat.pose.position.x =  0.45
+        self.hand_over_pose_retreat.pose.position.x =  0.50
         self.hand_over_pose_retreat.pose.position.y = -0.08
         self.hand_over_pose_retreat.pose.position.z =  0.95
         self.hand_over_pose_retreat.pose.orientation.x = -0.5
@@ -69,9 +70,9 @@ class GoToTarget:
 
         self.intial_pose = PoseStamped()
         self.intial_pose.header.frame_id = "base_link"
-        self.intial_pose.pose.position.x =  0.34
-        self.intial_pose.pose.position.y = -0.08
-        self.intial_pose.pose.position.z =  1.3
+        self.intial_pose.pose.position.x =  0.48
+        self.intial_pose.pose.position.y = -0.18
+        self.intial_pose.pose.position.z =  1.19
         self.intial_pose.pose.orientation.x = 0.0
         self.intial_pose.pose.orientation.y = 0.0
         self.intial_pose.pose.orientation.z = 0.707
@@ -107,7 +108,7 @@ class GoToTarget:
         table_pose.header.frame_id = "base_link"
         table_pose.pose.position.x = 0.0
         table_pose.pose.position.y = 0.0
-        table_pose.pose.position.z = 0.17
+        table_pose.pose.position.z = 0.16
         table_pose.pose.orientation.w = 1.0
         table_name = "table"
         self.scene.add_box(table_name, table_pose, size=(5.0, 5.0, 1.0))
@@ -137,17 +138,17 @@ class GoToTarget:
         return False
 
     def talk(self, str):
-        print("Saying: " + str)
         if self.is_sim:
+            print("Saying rivr: " + str)
             wav = festival.textToWav(str)
             data = sf.read(wav)
             string_msg =json.dumps(list(data[0]))
             self.rivr_robot_speech.publish(string_msg)
         else:
             #festival.sayText(str)
-            print("Saying: " + str)
+            print("Saying real: " + str)
 
-    def get_target(self):
+    def get_init_target(self):
         count = 0
         target = None
         near = False
@@ -163,22 +164,22 @@ class GoToTarget:
                 see_cathode = target.see_cathode.data
 
                 now = rospy.Time.now().to_sec()
-                if not near and (last_time_spoke is None or now > last_time_spoke+5.0):
-                    self.talk("Can you please move the putty closer together?")
-                    last_time_spoke = rospy.Time.now().to_sec()
-                
-                if not see_anode and not see_cathode and (last_time_spoke is None or now > last_time_spoke+5.0):
+                if not see_anode and not see_cathode and (last_time_spoke is None or now > last_time_spoke+self.speech_delay):
                     print(last_time_spoke, now)
                     self.talk("Can you please move the red and green putty to where I can see tem?")
                     last_time_spoke = rospy.Time.now().to_sec()
 
-                if not see_anode and (last_time_spoke is None or now > last_time_spoke+5.0):
+                if not see_anode and (last_time_spoke is None or now > last_time_spoke+self.speech_delay):
                     print(last_time_spoke, now)
+                    self.talk("Can you please move the red putty where I can see it?")
+                    last_time_spoke = rospy.Time.now().to_sec()
+
+                if not see_cathode and (last_time_spoke is None or now > last_time_spoke+self.speech_delay):
                     self.talk("Can you please move the green putty where I can see it?")
                     last_time_spoke = rospy.Time.now().to_sec()
 
-                if not see_cathode and (last_time_spoke is None or now > last_time_spoke+5.0):
-                    self.talk("Can you please move the red putty where I can see it?")
+                if not near and (last_time_spoke is None or now > last_time_spoke+self.speech_delay):
+                    self.talk("Can you please move the putty closer together?")
                     last_time_spoke = rospy.Time.now().to_sec()
 
             except rospy.exceptions.ROSException:
@@ -193,8 +194,6 @@ class GoToTarget:
             target.header.stamp = t
             self.listener.waitForTransform(target.header.frame_id, self.planning_frame, t, rospy.Duration(4.0) )
             goal_pose = self.listener.transformPose(self.planning_frame, target)
-
-            goal_pose.pose.position.z += self.hand_finger_offest_z
 
             return goal_pose
 
@@ -224,12 +223,12 @@ class GoToTarget:
         print('hand over pose')
         self.move_arm(self.hand_over_pose, 1.0)
         
-        print('open fingers')
+        print('open hand')
         self.move_fingers(self.hand_open)
 
         #LED = l e d
         if self.interactive:
-            self.talk("Can you please put the l e d between my fingers? The shorter lead should be on your left.")
+            self.talk("Can you please put the l e d between my fingers? The shorter lead should be on your right.")
         
         #wait for LED to be given then close hand
         if self.interactive:
@@ -238,12 +237,14 @@ class GoToTarget:
         #give acknowledgement?
         self.talk("thank you")
         self.grab.publish("grabbed")
-        print('\nclosed fingers')
+        print('\nclosed hand')
         self.move_fingers(self.hand_closed)
+
+        #move to retreat
         self.move_arm(self.hand_over_pose_retreat, 1.0)
             
         #move to intial positon above
-        #self.move_arm(self.intial_pose, 1.0)
+        self.move_arm(self.intial_pose, 1.0)
         
         #give instructions
         if self.interactive:
@@ -262,7 +263,7 @@ class GoToTarget:
             if self.interactive:
                 raw_input("\nWaiting for user to present, Press Enter to continue...")
 
-            standoff_pose = self.get_target()
+            standoff_pose = self.get_init_target()
             standoff_pose.pose.position.z += self.standoff_distance
 
             print('standoff')
@@ -270,17 +271,9 @@ class GoToTarget:
             
             self.move_arm(standoff_pose, 1.0)
             
-            '''
-            #moveit mothion planning
-            goal_pose = self.get_target()
-            self.move_arm(goal_pose, 1.0)
-            print('standoff')
-            print(goal_pose.pose.position)
-            '''
             rospy.loginfo('pre servo')
             print(self.servo())
             rospy.loginfo('post servo')
-            
             
             #check if should open hand
             if self.interactive:
