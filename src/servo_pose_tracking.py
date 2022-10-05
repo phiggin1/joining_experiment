@@ -37,7 +37,7 @@ def pose2sting(p):
     pos_str = np.array2string(np.asarray(pos),  precision=2, separator=',')
 
     quat_rot_str = np.array2string(np.asarray(rot),  precision=2, separator=',')
-    euler_rot_str = np.array2string(np.asarray(euler_from_quaternion(rot)),  precision=2, separator=',')
+    euler_rot_str = np.array2string(np.asarray(euler_from_quaternion(rot)),  precision=2, separator=',', suppress_small=True)
 
     return "Position: %s\tOrientation: %s" % (pos_str, euler_rot_str)
 
@@ -96,19 +96,23 @@ class Tracker:
         self.positional_tolerance = 0.01
         self.angular_tolerance = 0.1
 
-        self.pub_rate = 20 #hz
+        self.pub_rate = 10 #hz
 
         #number of zero twist halt msgs to send to get servo_server to halt
         self.num_halt_msgs = 20
 
-        self.time_out = 5.0
+        self.time_out = 25.0
 
         self.is_sim = rospy.get_param("~rivr", True)
+        if self.is_sim:
+            rospy.loginfo("virtual robot")
+        else:
+            rospy.loginfo("physical robot")
 
         #proportional gains  
-        self.cart_x_kp = rospy.get_param("~cart_x_kp", 1.5)
-        self.cart_y_kp = rospy.get_param("~cart_y_kp", 1.5)
-        self.cart_z_kp = rospy.get_param("~cart_z_kp", 1.5)
+        self.cart_x_kp = rospy.get_param("~cart_x_kp", 10.0)
+        self.cart_y_kp = rospy.get_param("~cart_y_kp", 10.0)
+        self.cart_z_kp = rospy.get_param("~cart_z_kp", 100.0)
         self.angular_kp = rospy.get_param("~angular_kp", 0.5)
 
         #integral gains
@@ -167,15 +171,15 @@ class Tracker:
                 abs(angular_error) < self.angular_tolerance)
 
     def talk(self, str):
-        print("Saying: " + str)
         if self.is_sim:
-            wav = festival.textToWav(str)
-            data = sf.read(wav)
-            string_msg =json.dumps(list(data[0]))
-            self.rivr_robot_speech.publish(string_msg)
+            print("Saying rivr: " + str)
+            #wav = festival.textToWav(str)
+            #data = sf.read(wav)
+            #string_msg =json.dumps(list(data[0]))
+            #self.rivr_robot_speech.publish(string_msg)
         else:
             #festival.sayText(str)
-            print("Saying: " + str)
+            print("Saying real: " + str)
 
     def experiment(self, req):
         positional_error = [9999.9,9999.9,9999.9]
@@ -186,10 +190,10 @@ class Tracker:
         z_pid = PID(Kp=self.cart_z_kp, Ki=self.cart_z_ki, Kd=self.cart_z_kd)
         theta_pid = PID(Kp=self.angular_kp, Ki=self.angular_ki, Kd=self.angular_kd)
 
-        x_pid.output_limits = (-0.6, 0.6)    # Output value will be between 0 and 10
-        y_pid.output_limits = (-0.6, 0.6)    # Output value will be between 0 and 10
-        z_pid.output_limits = (-0.6, 0.6)    # Output value will be between 0 and 10
-        theta_pid.output_limits = (-0.3, 0.3)    # Output value will be between 0 and 10
+        x_pid.output_limits = (-1.0, 1.0)    # Output value will be between -1.0 and 1.0
+        y_pid.output_limits = (-1.0, 1.0)    # Output value will be between -1.0 and 1.0
+        z_pid.output_limits = (-10.0, 10.0)    # Output value will be between -10.0 and 10.0
+        theta_pid.output_limits = (-1.0, 1.0)    # Output value will be between -1.0 and 1.0
 
         total_time = 0.0
         timed_out = False
@@ -224,7 +228,6 @@ class Tracker:
                 time = rospy.Time.now().to_sec()
                 dt = 1.0/self.pub_rate
                 
-
                 positional_error = get_position_error(self.finger_pose, self.target_pose)
 
                 q_t = quat_from_orientation(self.target_pose.pose.orientation)
@@ -258,15 +261,15 @@ class Tracker:
                 pose_vel.header = self.finger_pose.header
                 pose_vel.header.stamp = rospy.Time.now()
 
-                pose_vel.twist.linear.x = t_l_x #if abs(positional_error[0]) > 1.2*self.positional_tolerance else 0.0
-                pose_vel.twist.linear.y = t_l_y #if abs(positional_error[1]) > 1.2*self.positional_tolerance else 0.0
-                pose_vel.twist.linear.z = t_l_z #if abs(positional_error[2]) > 1.2*self.positional_tolerance else 0.0
+                pose_vel.twist.linear.x = t_l_x 
+                pose_vel.twist.linear.y = t_l_y 
+                pose_vel.twist.linear.z = t_l_z 
 
-                pose_vel.twist.angular.x = t_a_x #if abs(angular_error) > 1.2*self.angular_tolerance else 0.0
-                pose_vel.twist.angular.y = t_a_y #if abs(angular_error) > 1.2*self.angular_tolerance else 0.0
-                pose_vel.twist.angular.z = t_a_z #if abs(angular_error) > 1.2*self.angular_tolerance else 0.0
+                pose_vel.twist.angular.x = t_a_x 
+                pose_vel.twist.angular.y = t_a_y 
+                pose_vel.twist.angular.z = t_a_z 
 
-                rospy.loginfo("%f\t%f\t%f\t%f\t%f\t%f"%(pose_vel.twist.linear.x,pose_vel.twist.linear.y,pose_vel.twist.linear.z,pose_vel.twist.angular.x,pose_vel.twist.angular.y,pose_vel.twist.angular.z))
+                rospy.loginfo("%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f"%(pose_vel.twist.linear.x,pose_vel.twist.linear.y,pose_vel.twist.linear.z,pose_vel.twist.angular.x,pose_vel.twist.angular.y,pose_vel.twist.angular.z))
                 self.cart_vel_pub.publish(pose_vel)
                 
                 total_time += dt

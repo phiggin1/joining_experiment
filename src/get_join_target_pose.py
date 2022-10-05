@@ -257,7 +257,7 @@ class GetTargetPose:
 
         cent_x = cent_x/count
         cent_y = min_y + .01 #cent_y/count #min_y
-        cent_z = (cent_z/count) - .005 #max_z
+        cent_z = (cent_z/count) + .01 #max_z
 
         return [cent_x,cent_y,cent_z]
 

@@ -34,12 +34,18 @@ class GoToTarget:
 
         self.retry_times = 10      
 
-        self.finger_full_open = 0.0
-        self.finger_open = 1.20
-        self.finger_full_closed = 1.325
+        if self.is_sim:
+            joint_state_topic = ['joint_states:=/joint_states']
+            self.finger_full_open = 0.0
+            self.finger_open = 1.0
+            self.finger_full_closed = 1.2
+        else:
+            joint_state_topic = ['joint_states:=/j2n6s300_driver/out/joint_state']
+            self.finger_full_open = 0.0
+            self.finger_open = 1.20
+            self.finger_full_closed = 1.325      
 
-
-        self.speech_delay = 5.0
+        self.speech_delay = 8.0
 
         self.hand_open = [self.finger_open, self.finger_open, self.finger_full_open]
         self.hand_closed = [self.finger_full_closed, self.finger_full_closed, self.finger_full_open]
@@ -80,11 +86,7 @@ class GoToTarget:
 
         self.listener = tf.TransformListener()
         
-        if self.is_sim:
-            joint_state_topic = ['joint_states:=/joint_states']
-        else:
-            joint_state_topic = ['joint_states:=/j2n6s300_driver/out/joint_state']
-        
+
         print(joint_state_topic)
         moveit_commander.roscpp_initialize(joint_state_topic)
 
@@ -103,12 +105,12 @@ class GoToTarget:
 
         self.planning_frame = self.arm_move_group.get_planning_frame()
 
-        rospy.sleep(2)
+        '''rospy.sleep(2)
         table_pose = PoseStamped()
         table_pose.header.frame_id = "base_link"
         table_pose.pose.position.x = 0.0
         table_pose.pose.position.y = 0.0
-        table_pose.pose.position.z = 0.16
+        table_pose.pose.position.z = 0.13
         table_pose.pose.orientation.w = 1.0
         table_name = "table"
         self.scene.add_box(table_name, table_pose, size=(5.0, 5.0, 1.0))
@@ -122,7 +124,7 @@ class GoToTarget:
         person_pose.pose.orientation.w = 1.0
         person_name = "person"
         self.scene.add_box(person_name, person_pose, size=(1.0, 5.0, 5.0))
-        print(person_name, self.wait_for_scene_update(person_name, 4))
+        print(person_name, self.wait_for_scene_update(person_name, 4))'''
 
     def wait_for_scene_update(self, name, timeout):
         start = rospy.get_time()
@@ -144,9 +146,17 @@ class GoToTarget:
             data = sf.read(wav)
             string_msg =json.dumps(list(data[0]))
             self.rivr_robot_speech.publish(string_msg)
+            repeat = raw_input("Repeat (y/n): ")
+            while (repeat == 'y'):
+                self.rivr_robot_speech.publish(string_msg)
+                repeat = raw_input("Repeat (y/n): ")
+
         else:
-            #festival.sayText(str)
+            festival.sayText(str)
             print("Saying real: " + str)
+            while (repeat == 'y'):
+                festival.sayText(str)
+                repeat = raw_input("Repeat (y/n): ")
 
     def get_init_target(self):
         count = 0
@@ -226,19 +236,16 @@ class GoToTarget:
         print('open hand')
         self.move_fingers(self.hand_open)
 
-        #LED = l e d
-        if self.interactive:
-            self.talk("Can you please put the l e d between my fingers? The shorter lead should be on your right.")
+
+        self.talk("Can you please put the l e d between my fingers? The shorter lead should be on your right.")
         
-        #wait for LED to be given then close hand
-        if self.interactive:
-            raw_input("\nHand over led, Press Enter to continue...")
-        
+
         #give acknowledgement?
-        self.talk("thank you")
         self.grab.publish("grabbed")
-        print('\nclosed hand')
         self.move_fingers(self.hand_closed)
+        print('\nclosed hand')
+
+        self.talk("Thank you")
 
         #move to retreat
         self.move_arm(self.hand_over_pose_retreat, 1.0)
@@ -246,22 +253,19 @@ class GoToTarget:
         #move to intial positon above
         self.move_arm(self.intial_pose, 1.0)
         
-        #give instructions
-        if self.interactive:
-            self.talk("place the lead of the red wire into the red putty")
-            raw_input("\nPress Enter to continue...")
 
-            self.talk("place the lead of the black wire into the green putty")
-            raw_input("\nPress Enter to continue...")
+        self.talk("Can you please place the lead of the red wire into the red putty")
+        raw_input("\nPress Enter to continue...")
 
-            self.talk("can you hold the two pieces of putty up in front of me?")
-            raw_input("\nPress Enter to continue...")
-        
+        self.talk("Can you place the lead of the black wire into the green putty")
+        raw_input("\nPress Enter to continue...")
+
+        self.talk("Can you hold the two pieces of putty up in front of me?")
+        raw_input("\nPress Enter to continue...")
         
         reached_target = False
         while not reached_target:
-            if self.interactive:
-                raw_input("\nWaiting for user to present, Press Enter to continue...")
+            raw_input("\nWaiting for user to present, Press Enter to continue...")
 
             standoff_pose = self.get_init_target()
             standoff_pose.pose.position.z += self.standoff_distance
@@ -276,15 +280,17 @@ class GoToTarget:
             rospy.loginfo('post servo')
             
             #check if should open hand
-            if self.interactive:
-                i = raw_input("Open hand (y/n) ")
-                if i == 'y':
-                    print('open hand')
-                    self.grab.publish("released")
-                    self.move_fingers(self.hand_open)
-                    reached_target = True
-                else:
-                    self.failures += 1
+            self.talk("did the L E D light up")
+            i = raw_input("Open hand (y/n) ")
+            if i == 'y':
+                print('open hand')
+                self.grab.publish("released")
+                self.move_fingers(self.hand_open)
+                self.talk("thank you")
+                reached_target = True
+            else:
+                self.talk("i will try again")
+                self.failures += 1
             
             print('standoff')
             print(standoff_pose.pose.position)

@@ -27,24 +27,18 @@
 
   <arg name="rivr" default="true" />
 
-  <!-- This node does the servoing calculations  -->
-  <node name="servo_server" pkg="moveit_servo" type="servo_server" output="screen" >
-    <rosparam command="load" file="$(find joining_experiment)/config/servo_config.yaml" />
-  </node>
 
-  <node name="track_finger" pkg="joining_experiment" type="get_finger_pose.py" output="screen" ></node>
-
-  <node name="get_cathode" pkg="joining_experiment" type="get_join_target_pose.py" output="screen" >
+  <node name="get_cathode" pkg="joining_experiment" type="find_putty.py" output="screen" >
     <param name="rivr"  value="$(arg rivr)" />
     <param name="type"  value="cathode" />
-    <param name="cath_min_r"  value="$(arg cath_min_r)" />
-    <param name="cath_max_r"  value="$(arg cath_max_r)" />
-    <param name="cath_min_g"  value="$(arg cath_min_g)" />
-    <param name="cath_max_g"  value="$(arg cath_max_g)" />
-    <param name="cath_min_b"  value="$(arg cath_min_b)" />
-    <param name="cath_max_b"  value="$(arg cath_max_b)" />
+    <param name="min_r"  value="$(arg cath_min_r)" />
+    <param name="max_r"  value="$(arg cath_max_r)" />
+    <param name="min_g"  value="$(arg cath_min_g)" />
+    <param name="max_g"  value="$(arg cath_max_g)" />
+    <param name="min_b"  value="$(arg cath_min_b)" />
+    <param name="max_b"  value="$(arg cath_max_b)" />
   </node>
-
+  
   <node name="get_anode" pkg="joining_experiment" type="find_putty.py" output="screen" >
     <param name="rivr"  value="$(arg rivr)" />
     <param name="type"  value="anode" />
@@ -55,9 +49,7 @@
     <param name="min_b"  value="$(arg an_min_b)" />
     <param name="max_b"  value="$(arg an_max_b)" />
   </node>
+  
 
-  <node name="joining_servo" pkg="joining_experiment" type="servo_pose_tracking.py" output="screen" >
-      <param name="rivr"  value="$(arg rivr)" />
-  </node>
   
 </launch>
