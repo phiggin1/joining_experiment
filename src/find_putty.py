@@ -11,7 +11,36 @@ from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import PointCloud2
 import sensor_msgs.point_cloud2 as pc2
 from joining_experiment.msg import Object
+from geometry_msgs.msg import PoseStamped
 from tf.transformations import quaternion_from_euler
+from visualization_msgs.msg import Marker
+
+
+def get_marker(x,y,z,w,h,d,frame_id,type):
+    m = Marker()
+    m.header.frame_id = frame_id
+
+    m.type = Marker.CUBE
+    m.action = Marker.ADD
+
+    m.pose.position.x = x
+    m.pose.position.y = y
+    m.pose.position.z = z
+
+    m.pose.orientation.w = 1.0
+
+    m.lifetime = rospy.Duration.from_sec(1.0)
+    m.scale.x = w if w>0.0 else 0.01
+    m.scale.y = h if h>0.0 else 0.01
+    m.scale.z = d if d>0.0 else 0.01
+
+    m.color.a = 0.50
+    if type == "anode":
+        m.color.r = 255
+    if type == "cathode":
+        m.color.g = 255
+
+    return m
 
 def dot(a,b):
     return (a[0]*b[0])+(a[1]*b[1])+(a[2]*b[2])
@@ -21,6 +50,13 @@ def dist(pa, pb):
 
 def norm(a):
     return math.sqrt(a[0]**2 + a[1]**2 + a[2]**2)
+
+def reject_outliers(data, m=20):
+    d = np.abs(data[:,0] - np.median(data[:,0]))
+    mdev = np.median(d)
+    s = d / (mdev if mdev else 1.)
+
+    return data[s < m]
 
 class GetTargetPose:
     def __init__(self):
@@ -42,7 +78,7 @@ class GetTargetPose:
 
         #Min and max distance to consider for anode/cathode positions in mm
         self.min_depth = rospy.get_param("min_depth", 0)
-        self.max_depth = rospy.get_param("max_depth", 9999)
+        self.max_depth = rospy.get_param("max_depth", 1500.0)
 
         # Threshold of anode (red) in BGR space
         self.min_color = np.array([min_b, min_g, min_r])
@@ -66,7 +102,8 @@ class GetTargetPose:
 
         self.img_pub = rospy.Publisher('/target/image_'+self.type, Image, queue_size=10)
         self.pc_pub = rospy.Publisher('/target/pc_'+self.type, PointCloud2, queue_size=10)
-        self.object_pub = rospy.Publisher('/target/object_'+self.type, Object, queue_size=10)
+        self.marker_pub = rospy.Publisher('/target/marker_'+self.type, Marker, queue_size=10)
+        self.obj_pub = rospy.Publisher('/target/object_'+self.type, Object, queue_size=10)
 
         self.ts = message_filters.ApproximateTimeSynchronizer([self.rgb_image_sub, self.depth_image_sub], 10, slop=2.0)
         self.ts.registerCallback(self.callback)
@@ -76,13 +113,14 @@ class GetTargetPose:
     def callback(self, rgb_ros_image, depth_ros_image):
         rgb = np.asarray(self.bridge.imgmsg_to_cv2(rgb_ros_image, desired_encoding="passthrough"))
         depth = np.asarray(self.bridge.imgmsg_to_cv2(depth_ros_image, desired_encoding="passthrough"))
-        blur = cv2.GaussianBlur(rgb, (15, 15), 2)
+        blur = cv2.GaussianBlur(rgb, (21, 21), 5)
 
         # preparing the mask to overlay
         image_mask = cv2.inRange(blur, self.min_color, self.max_color)
         depth_masked = cv2.bitwise_and(depth, depth, mask=image_mask)
         points = self.get_pointcloud(depth_masked)
 
+        x,y,z,w,h,d = 0.0,0.0,0.0,0.0,0.0,0.0
         if len(points)>0:      
             x,y,z,w,h,d = self.get_centroid(points)
             #rospy.loginfo("%s x: %.3f y: %.3f z: %.3f w: %.3f h: %.3f d: %.3f" % (self.type,x,y,z,w,h,d))
@@ -100,28 +138,48 @@ class GetTargetPose:
         else:
             rospy.loginfo("Empty "+self.type+" pointcloud")
         
-        if self.debug:
-            rgb_masked = cv2.bitwise_and(rgb, rgb, mask=image_mask)
-            self.img_pub.publish(self.bridge.cv2_to_imgmsg(rgb_masked, encoding="passthrough"))
-            self.pc_pub.publish(pc2.create_cloud_xyz32(depth_ros_image.header, points))
+        rgb_masked = cv2.bitwise_and(rgb, rgb, mask=image_mask)
+        self.img_pub.publish(self.bridge.cv2_to_imgmsg(rgb_masked, encoding="passthrough"))
+        self.pc_pub.publish(pc2.create_cloud_xyz32(depth_ros_image.header, points))
+        self.marker_pub.publish(get_marker(x,y,z,w,h,d,depth_ros_image.header.frame_id,self.type))
+
+        obj = Object()
+        obj.header = depth_ros_image.header
+        obj.point.x = x
+        obj.point.y = y
+        obj.point.z = z
+        obj.w.data = w
+        obj.h.data = h
+        obj.d.data = d
+        self.obj_pub.publish(obj)
+        
 
     def get_pointcloud(self, depth_masked):
         point_list = []
+        distances = []
         for r in range(0, depth_masked.shape[0], self.step):
             for c in range(0, depth_masked.shape[1], self.step):
-                #if depth_masked[r,c]>self.min_depth and depth_masked[r,c]<self.max_depth:
-                if depth_masked[r,c]>0.0:
-                    d = depth_masked[r,c]/1000.0
-                    cx = self.cam_model.cx()
-                    cy = self.cam_model.cy()
-                    fx = self.cam_model.fx()
-                    fy = self.cam_model.fy()
+                d = depth_masked[r,c]
+                if self.min_depth < d <  self.max_depth:
+                    distances.append((d, r, c))
 
-                    x = (c - cx)*d/fx
-                    y = (r - cy)*d/fy
-                    z = d
+        if len(distances) == 0:
+            return point_list
 
-                    point_list.append([x,y,z])
+        for dist in reject_outliers(np.asarray(distances), m=50):
+            d = dist[0]/1000.0
+            r = dist[1]
+            c = dist[2]
+            cx = self.cam_model.cx()
+            cy = self.cam_model.cy()
+            fx = self.cam_model.fx()
+            fy = self.cam_model.fy()
+
+            x = (c - cx)*d/fx
+            y = (r - cy)*d/fy
+            z = d
+
+            point_list.append([x,y,z])
 
         return point_list
 
@@ -140,10 +198,6 @@ class GetTargetPose:
 
         count = 0
         for p in points:
-            cent_x += p[0]
-            cent_y += p[1]
-            cent_z += p[2]
-
             if p[0] < min_x:
                 min_x = p[0]
             if p[0] > max_x:
@@ -159,11 +213,9 @@ class GetTargetPose:
             if p[2] > max_z:
                 max_z = p[2]
 
-            count += 1
-
-        cent_x = cent_x/count
-        cent_y = cent_y/count 
-        cent_z = cent_z/count
+        cent_x = (max_x+min_x)/2.0
+        cent_y = (max_y+min_y)/2.0 
+        cent_z = (max_z+min_z)/2.0
 
         w = abs(max_x - min_x)
         h = abs(max_y - min_y)
