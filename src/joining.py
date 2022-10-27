@@ -154,6 +154,7 @@ class GoToTarget:
         else:
             festival.sayText(str)
             print("Saying real: " + str)
+            repeat = raw_input("Repeat (y/n): ")
             while (repeat == 'y'):
                 festival.sayText(str)
                 repeat = raw_input("Repeat (y/n): ")
@@ -229,7 +230,7 @@ class GoToTarget:
     def experiment(self):
         self.failures = 0
                
-        #move to handover position
+        '''#move to handover position
         print('hand over pose')
         self.move_arm(self.hand_over_pose, 1.0)
         
@@ -249,19 +250,19 @@ class GoToTarget:
 
         #move to retreat
         self.move_arm(self.hand_over_pose_retreat, 1.0)
-            
+            '''
         #move to intial positon above
         self.move_arm(self.intial_pose, 1.0)
         
 
-        self.talk("Can you please place the lead of the red wire into the red putty")
+        '''self.talk("Can you please place the lead of the red wire into the red putty")
         raw_input("\nPress Enter to continue...")
 
         self.talk("Can you place the lead of the black wire into the green putty")
         raw_input("\nPress Enter to continue...")
 
         self.talk("Can you hold the two pieces of putty up in front of me?")
-        raw_input("\nPress Enter to continue...")
+        raw_input("\nPress Enter to continue...")'''
         
         reached_target = False
         while not reached_target:
@@ -280,13 +281,13 @@ class GoToTarget:
             rospy.loginfo('post servo')
             
             #check if should open hand
-            self.talk("did the L E D light up")
+            #self.talk("did the L E D light up")
             i = raw_input("Open hand (y/n) ")
             if i == 'y':
                 print('open hand')
                 self.grab.publish("released")
                 self.move_fingers(self.hand_open)
-                self.talk("thank you")
+                #self.talk("thank you")
                 reached_target = True
             else:
                 self.talk("i will try again")

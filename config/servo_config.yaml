@@ -11,11 +11,11 @@ scale:
   rotational:  0.3 # Max angular velocity. Rads per publish_period. Unit is [rad/s]. Only used for Cartesian commands.
   # Max joint angular/linear velocity. Rads or Meters per publish period. Only used for joint commands on joint_command_in_topic.
   joint: 0.5
-low_pass_filter_coeff: 2.0  # Larger --> trust the filtered data more, trust the measurements less.
+low_pass_filter_coeff: 4.0  # Larger --> trust the filtered data more, trust the measurements less.
 
 ## Properties of outgoing commands
 publish_period: 0.05    # 1/Nominal publish rate [seconds]
-low_latency_mode: false  # Set this to true to publish as soon as an incoming Twist command is received (publish_period is ignored)
+low_latency_mode: true  # Set this to true to publish as soon as an incoming Twist command is received (publish_period is ignored)
 
 # What type of topic does your robot driver expect?
 # Currently supported are std_msgs/Float64MultiArray (for ros_control JointGroupVelocityController or JointGroupPositionController)
@@ -24,8 +24,8 @@ command_out_type: trajectory_msgs/JointTrajectory
 
 # What to publish? Can save some bandwidth as most robots only require positions or velocities
 publish_joint_positions: true
-publish_joint_velocities: true
-publish_joint_accelerations: true
+publish_joint_velocities: false
+publish_joint_accelerations: false
 
 ## MoveIt properties
 move_group_name: right_arm # Often 'manipulator' or 'arm' --- full husky robot
@@ -36,7 +36,7 @@ ee_frame_name: j2n6s300_end_effector  # The name of the end effector link, used 
 robot_link_command_frame: base_link  # commands must be given in the frame of a robot link. Usually either the base or end effector
 
 ## Stopping behaviour
-incoming_command_timeout:  0.15  # Stop servoing if X seconds elapse without a new command
+incoming_command_timeout:  2.0  # Stop servoing if X seconds elapse without a new command
 # If 0, republish commands forever even if the robot is stationary. Otherwise, specify num. to publish.
 # Important because ROS may drop some messages and we need the robot to halt reliably.
 num_outgoing_halt_msgs_to_publish: 4

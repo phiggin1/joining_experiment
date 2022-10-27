@@ -65,9 +65,9 @@ class GetJacobian:
                p.orientation.z,
                p.orientation.w]
 
-        joint_str = np.array2string(np.asarray(joint_angles),  precision=2, separator=',', suppress_small=True)
+        joint_str = np.array2string(np.asarray(joint_angles),  precision=4, separator=',', suppress_small=True)
 
-        ee_pos_str = np.array2string(np.asarray(pos),  precision=2, separator=',')
+        ee_pos_str = np.array2string(np.asarray(pos),  precision=4, separator=',')
 
         ee_quat_rot_str = np.array2string(np.asarray(rot),  precision=2, separator=',')
         ee_euler_rot_str = np.array2string(np.asarray(euler_from_quaternion(rot)),  precision=2, separator=',')
@@ -85,8 +85,11 @@ class GetJacobian:
             % (rospy.Time.now().to_sec(), ee_pos_str, ee_rot_str, cond))
         '''
 
-        print("Time:\t%.2f\tJoint Angles:\t%s\t \n\t EE Position:\t%s\tEE Orientation:\t%s\tCondition:\t%.2f" 
-            % (rospy.Time.now().to_sec(), joint_str, ee_pos_str, ee_quat_rot_str, cond))
+        #print("Time:\t%.2f\tJoint Angles:\t%s\tEE Position:\t%s\tEE Orientation:\t%s\tCondition:\t%.2f" 
+        #    % (rospy.Time.now().to_sec(), joint_str, ee_pos_str, ee_quat_rot_str, cond))
+        print("Time:\t%.2f\tJoint Angles:\t%s\tEE Position:\t%s" 
+            % (rospy.Time.now().to_sec(), joint_str, ee_pos_str))
+            
             
 if __name__ == '__main__':
     jac = GetJacobian()

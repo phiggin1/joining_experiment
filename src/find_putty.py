@@ -10,26 +10,8 @@ import image_geometry
 from sensor_msgs.msg import Image, CameraInfo
 from sensor_msgs.msg import PointCloud2
 import sensor_msgs.point_cloud2 as pc2
-from joining_experiment.msg import JoinPose
-from geometry_msgs.msg import PoseStamped
+from joining_experiment.msg import Object
 from tf.transformations import quaternion_from_euler
-
-def remove_isolated_pixels(image):
-    connectivity = 8
-
-    output = cv2.connectedComponentsWithStats(image, connectivity, cv2.CV_32S)
-
-    num_stats = output[0]
-    labels = output[1]
-    stats = output[2]
-
-    new_image = image.copy()
-
-    for label in range(num_stats):
-        if stats[label,cv2.CC_STAT_AREA] == 1:
-            new_image[labels == label] = 0
-
-    return new_image
 
 def dot(a,b):
     return (a[0]*b[0])+(a[1]*b[1])+(a[2]*b[2])
@@ -84,6 +66,7 @@ class GetTargetPose:
 
         self.img_pub = rospy.Publisher('/target/image_'+self.type, Image, queue_size=10)
         self.pc_pub = rospy.Publisher('/target/pc_'+self.type, PointCloud2, queue_size=10)
+        self.object_pub = rospy.Publisher('/target/object_'+self.type, Object, queue_size=10)
 
         self.ts = message_filters.ApproximateTimeSynchronizer([self.rgb_image_sub, self.depth_image_sub], 10, slop=2.0)
         self.ts.registerCallback(self.callback)
@@ -102,7 +85,17 @@ class GetTargetPose:
 
         if len(points)>0:      
             x,y,z,w,h,d = self.get_centroid(points)
-            rospy.loginfo("%s x: %.3f y: %.3f z: %.3f w: %.3f h: %.3f d: %.3f" % (self.type,x,y,z,w,h,d))
+            #rospy.loginfo("%s x: %.3f y: %.3f z: %.3f w: %.3f h: %.3f d: %.3f" % (self.type,x,y,z,w,h,d))
+            #rospy.loginfo("%s\tx: %.3f\ty: %.3f\tz: %.3f" % (self.type,x,y,z))
+            obj = Object()
+            obj.header = depth_ros_image.header
+            obj.point.x = x
+            obj.point.y = y
+            obj.point.z = z
+            obj.width.data = w
+            obj.height.data = h
+            obj.depth.data = d
+            self.object_pub.publish(obj)
 
         else:
             rospy.loginfo("Empty "+self.type+" pointcloud")
@@ -167,7 +160,6 @@ class GetTargetPose:
                 max_z = p[2]
 
             count += 1
-
 
         cent_x = cent_x/count
         cent_y = cent_y/count 
