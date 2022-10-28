@@ -120,3 +120,19 @@ see_anode:
   data: true
 see_cathode:
   data: true"
+
+
+
+rostopic pub -r 10 -s /target/target_pose geometry_msgs/PoseStamped "header: 
+  stamp: now
+  frame_id: base_link
+pose:
+  position:
+    x: 0.573
+    y: 0.001
+    z: 0.2
+  orientation:
+    x: 0.5
+    y: 0.5
+    z: 0.5
+    w: 0.5"
