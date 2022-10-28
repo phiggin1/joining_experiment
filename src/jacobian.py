@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 import sys
 import os
 import rospy
@@ -25,22 +25,16 @@ class GetJacobian:
 
         rospy.init_node('jacobian', anonymous=True)
 
-        self.is_sim = rospy.get_param("~rivr", False)
-        if self.is_sim:
-            joint_state_topic = ['joint_states:=/joint_states']
-        else:
-            joint_state_topic = ['joint_states:=/j2n6s300_driver/out/joint_state']
 
 
-
-        moveit_commander.roscpp_initialize(joint_state_topic)
+        moveit_commander.roscpp_initialize(sys.argv)
 
 
         self.robot = moveit_commander.RobotCommander()
         self.scene = moveit_commander.PlanningSceneInterface()
 
-        self.arm_group_name = "right_arm"
-        #self.arm_group_name = "arm"
+
+        self.arm_group_name = "arm"
         self.arm_move_group = moveit_commander.MoveGroupCommander(self.arm_group_name)
       
         self.planning_frame = self.arm_move_group.get_planning_frame()
@@ -72,8 +66,8 @@ class GetJacobian:
         ee_quat_rot_str = np.array2string(np.asarray(rot),  precision=2, separator=',')
         ee_euler_rot_str = np.array2string(np.asarray(euler_from_quaternion(rot)),  precision=2, separator=',')
 
-        det = np.linalg.det(matrix_moveit)
-        cond = np.linalg.cond(matrix_moveit)
+        #det = np.linalg.det(matrix_moveit)
+        #cond = np.linalg.cond(matrix_moveit)
         '''
         print("Time:\t%.2f\tJoint Angles:\t%s\tEE Position:\t%s\tEE Orientation:\t%s\tDeterminant:\t%.2f\tCondition:\t%.2f" 
             % (rospy.Time.now().to_sec(), joint_str, ee_pos_str, ee_rot_str, det, cond))
@@ -87,8 +81,8 @@ class GetJacobian:
 
         #print("Time:\t%.2f\tJoint Angles:\t%s\tEE Position:\t%s\tEE Orientation:\t%s\tCondition:\t%.2f" 
         #    % (rospy.Time.now().to_sec(), joint_str, ee_pos_str, ee_quat_rot_str, cond))
-        print("Time:\t%.2f\tJoint Angles:\t%s\tEE Position:\t%s" 
-            % (rospy.Time.now().to_sec(), joint_str, ee_pos_str))
+        print("Time:\t%.2f\tJoint Angles:\t%s\tEE Position:\t%s\tEE Orientation:\t%s" 
+            % (rospy.Time.now().to_sec(), joint_str, ee_pos_str, ee_quat_rot_str))
             
             
 if __name__ == '__main__':

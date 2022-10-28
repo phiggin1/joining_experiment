@@ -1,0 +1,7 @@
+<launch>
+
+  <node name="get_anode" pkg="joining_experiment" type="jacobian.py" output="screen" ns="my_gen3" >
+
+  </node>
+  
+</launch>

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import rospy
 import message_filters
@@ -67,14 +67,7 @@ class GetTargetPose:
         if (a[0] > 0):
             theta = -theta
 
-        quat = quaternion_from_euler(math.pi/2.0, theta-(math.pi/2.0), 0.0 )
-
-        '''if d > self.led_width+2*self.putty_width:
-            print(d, self.led_width+2*self.putty_width)
-            rospy.loginfo("Anode and cathode to far away")
-            target.near.data = False'''
-        #todo add in more error checking
-            
+        quat = quaternion_from_euler(math.pi/2.0, theta-(math.pi/2.0), 0.0 )          
 
         target.pose.position.x = (pa[0]+pc[0])/2.0
         target.pose.position.y = (pa[1]+pc[1])/2.0 

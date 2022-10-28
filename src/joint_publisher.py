@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 """Publishes joint trajectory to move robot to given pose"""
 
 import rospy

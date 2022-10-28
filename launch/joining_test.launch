@@ -1,47 +1,7 @@
 <launch>
-  <!-- The package has 2 examples of converting joystick commands to servo commands.
-       This is the higher-latency, Python-based teleop_tools example.
-       You can modify it in your own package for your own type of gamepad or joystick.
-       We do plan to accept pull requests of config files for other controller types using this method.
-  <remap from="/joint_states" to="/j2n6s300/joint_states"/>
 
-  -->
-  <arg name="rivr" default="true" />
+  <node name="get_anode" pkg="joining_experiment" type="find_putty.py" output="screen" ns="my_gen3" >
 
-  <arg name="cath_min_r" default="0" />
-  <arg name="cath_max_r" default="64" />
-  <arg name="cath_min_g" default="80" />
-  <arg name="cath_max_g" default="255" />
-  <arg name="cath_min_b" default="0" />
-  <arg name="cath_max_b" default="64" />
-
-  <arg name="an_min_r" default="100" />
-  <arg name="an_max_r" default="255" />
-  <arg name="an_min_g" default="0" />
-  <arg name="an_max_g" default="64" />
-  <arg name="an_min_b" default="0" />
-  <arg name="an_max_b" default="64" />
-
-  <node name="get_cathode" pkg="joining_experiment" type="find_putty.py" output="screen" >
-    <param name="rivr"  value="$(arg rivr)" />
-    <param name="type"  value="cathode" />
-    <param name="min_r"  value="$(arg cath_min_r)" />
-    <param name="max_r"  value="$(arg cath_max_r)" />
-    <param name="min_g"  value="$(arg cath_min_g)" />
-    <param name="max_g"  value="$(arg cath_max_g)" />
-    <param name="min_b"  value="$(arg cath_min_b)" />
-    <param name="max_b"  value="$(arg cath_max_b)" />
-  </node>
-  
-  <node name="get_anode" pkg="joining_experiment" type="find_putty.py" output="screen" >
-    <param name="rivr"  value="$(arg rivr)" />
-    <param name="type"  value="anode" />
-    <param name="min_r"  value="$(arg an_min_r)" />
-    <param name="max_r"  value="$(arg an_max_r)" />
-    <param name="min_g"  value="$(arg an_min_g)" />
-    <param name="max_g"  value="$(arg an_max_g)" />
-    <param name="min_b"  value="$(arg an_min_b)" />
-    <param name="max_b"  value="$(arg an_max_b)" />
   </node>
   
 </launch>
