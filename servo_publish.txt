@@ -13,12 +13,14 @@ twist:
 
 
 
-rostopic pub -r 100 -s /servo_server/delta_twist_cmds geometry_msgs/TwistStamped "header: auto
+rostopic pub -r 100 -s /my_gen3/servo_server/delta_twist_cmds geometry_msgs/TwistStamped "header: 
+  stamp: now
+  frame_id: base_link
 twist:
   linear:
     x: 0.0
     y: 0.0
-    z: -0.5
+    z: -1.0
   angular:
     x: 0.0
     y: 0.0
@@ -85,7 +87,7 @@ pose:
     z: 0.0
     w: 0.0"
 
-rostopic pub -r 10 -s /target/target geometry_msgs/PoseStamped "header: 
+rostopic pub -r 10 -s /target/target_pose geometry_msgs/PoseStamped "header: 
   stamp: now
   frame_id: base_link
 pose:
@@ -120,16 +122,18 @@ see_anode:
   data: true
 see_cathode:
   data: true"
+  
 
 
+0.5734,0.0014,0.4236
 
 rostopic pub -r 10 -s /target/target_pose geometry_msgs/PoseStamped "header: 
   stamp: now
   frame_id: base_link
 pose:
   position:
-    x: 0.573
-    y: 0.001
+    x: 0.5734
+    y: 0.0014
     z: 0.2
   orientation:
     x: 0.5

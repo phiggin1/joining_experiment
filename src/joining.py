@@ -7,9 +7,7 @@ import moveit_commander
 import moveit_msgs.msg
 from std_msgs.msg import String
 from visualization_msgs.msg import Marker
-import festival
-import soundfile as sf
-import json
+
 from joining_experiment.msg import JoinPose
 from joining_experiment.srv import JoiningServo, JoiningServoResponse
 import time
@@ -26,7 +24,7 @@ class GoToTarget:
 
         self.is_sim = rospy.get_param("~rivr", False)
 
-        self.rivr_robot_speech = rospy.Publisher('/robotspeech', String, queue_size=10)
+        self.rivr_robot_speech = rospy.Publisher('/text_to_speech', String, queue_size=10)
 
         self.interactive = True
 
@@ -105,7 +103,8 @@ class GoToTarget:
 
         self.planning_frame = self.arm_move_group.get_planning_frame()
 
-        '''rospy.sleep(2)
+        '''
+        rospy.sleep(2)
         table_pose = PoseStamped()
         table_pose.header.frame_id = "base_link"
         table_pose.pose.position.x = 0.0
@@ -124,7 +123,8 @@ class GoToTarget:
         person_pose.pose.orientation.w = 1.0
         person_name = "person"
         self.scene.add_box(person_name, person_pose, size=(1.0, 5.0, 5.0))
-        print(person_name, self.wait_for_scene_update(person_name, 4))'''
+        print(person_name, self.wait_for_scene_update(person_name, 4))
+        '''
 
     def wait_for_scene_update(self, name, timeout):
         start = rospy.get_time()
@@ -139,25 +139,14 @@ class GoToTarget:
 
         return False
 
-    def talk(self, str):
-        if self.is_sim:
-            print("Saying rivr: " + str)
-            wav = festival.textToWav(str)
-            data = sf.read(wav)
-            string_msg =json.dumps(list(data[0]))
-            self.rivr_robot_speech.publish(string_msg)
-            repeat = raw_input("Repeat (y/n): ")
+    def talk(self, text):
+            print("Saying rivr: " + text)
+            self.rivr_robot_speech.publish(text)
+            repeat = input("Repeat (y/n): ")
             while (repeat == 'y'):
                 self.rivr_robot_speech.publish(string_msg)
-                repeat = raw_input("Repeat (y/n): ")
+                repeat = input("Repeat (y/n): ")
 
-        else:
-            festival.sayText(str)
-            print("Saying real: " + str)
-            repeat = raw_input("Repeat (y/n): ")
-            while (repeat == 'y'):
-                festival.sayText(str)
-                repeat = raw_input("Repeat (y/n): ")
 
     def get_init_target(self):
         count = 0
@@ -197,7 +186,7 @@ class GoToTarget:
                 rospy.loginfo("Timeout waiting for target")
                 count+=1
                 if count>= self.retry_times:
-                    if raw_input("Keep retrying (y/n)?") == 'y':
+                    if input("Keep retrying (y/n)?") == 'y':
                         count = 0
         
         if target is not None:
@@ -256,17 +245,17 @@ class GoToTarget:
         
 
         '''self.talk("Can you please place the lead of the red wire into the red putty")
-        raw_input("\nPress Enter to continue...")
+        input("\nPress Enter to continue...")
 
         self.talk("Can you place the lead of the black wire into the green putty")
-        raw_input("\nPress Enter to continue...")
+        input("\nPress Enter to continue...")
 
         self.talk("Can you hold the two pieces of putty up in front of me?")
-        raw_input("\nPress Enter to continue...")'''
+        input("\nPress Enter to continue...")'''
         
         reached_target = False
         while not reached_target:
-            raw_input("\nWaiting for user to present, Press Enter to continue...")
+            input("\nWaiting for user to present, Press Enter to continue...")
 
             standoff_pose = self.get_init_target()
             standoff_pose.pose.position.z += self.standoff_distance
@@ -282,7 +271,7 @@ class GoToTarget:
             
             #check if should open hand
             #self.talk("did the L E D light up")
-            i = raw_input("Open hand (y/n) ")
+            i = input("Open hand (y/n) ")
             if i == 'y':
                 print('open hand')
                 self.grab.publish("released")

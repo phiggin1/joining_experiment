@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 from simple_pid import PID
 from joining_experiment.srv import JoiningServo, JoiningServoResponse
+from trajectory_msgs.msg import JointTrajectory
 
 def get_position_error(p1, p2):
     x = p1.pose.position.x - p2.pose.position.x
@@ -97,7 +98,7 @@ class Tracker:
         #number of zero twist halt msgs to send to get servo_server to halt
         self.num_halt_msgs = 20
 
-        self.time_out = 10.0
+        self.time_out = 5.0
 
         self.is_sim = rospy.get_param("~rivr", True)
         if self.is_sim:
@@ -109,7 +110,7 @@ class Tracker:
         self.cart_x_kp = rospy.get_param("~cart_x_kp", 1.50)
         self.cart_y_kp = rospy.get_param("~cart_y_kp", 1.50)
         self.cart_z_kp = rospy.get_param("~cart_z_kp", 1.50)
-        self.angular_kp = rospy.get_param("~angular_kp", 0.5)
+        self.angular_kp = rospy.get_param("~angular_kp", 0.50)
 
         #integral gains
         self.cart_x_ki = rospy.get_param("~cart_x_ki", 0.0)
@@ -134,10 +135,25 @@ class Tracker:
         self.cart_vel_pub = rospy.Publisher('/my_gen3/servo_server/delta_twist_cmds', TwistStamped, queue_size=10)
         self.rivr_robot_speech = rospy.Publisher('/robotspeech', String, queue_size=10)
 
-        #self.service = rospy.Service('JoiningServo', JoiningServo, self.experiment)
-        self.total_time = 0.0
-        self.experiment(True)
+        self.command_sub = rospy.Subscriber('/my_gen3/gen3_joint_trajectory_controller/command', JointTrajectory, self.get_command)
+
+        self.service = rospy.Service('servo_pose_tracking', JoiningServo, self.track_pose)
+
+        #self.track_pose(True)
         rospy.spin()
+
+    def get_command(self, cmd):
+        t = rospy.Time.now().to_sec()
+        joint_pos = cmd.points[0].positions
+        entry = {} 
+        entry['timestamp'] = t
+        i = 1
+        for p in joint_pos:
+            entry['cmd_joint_'+str(i)] = p
+            i+=1
+
+        if not self.timed_out:
+            self.data.append(entry)
 
     def get_finger_pose(self, pose):
         t = rospy.Time.now()
@@ -186,22 +202,24 @@ class Tracker:
                 abs(angular_error) < self.angular_tolerance)
 
 
-    def experiment(self, req):
-        data = []
+    def track_pose(self, req):
+        self.total_time = 0.0
+        self.data = []
+        self.timed_out = False
         positional_error = [9999.9,9999.9,9999.9]
         angular_error = 9999.9
 
         x_pid = PID(Kp=self.cart_x_kp, Ki=self.cart_x_ki, Kd=self.cart_x_kd)
         y_pid = PID(Kp=self.cart_y_kp, Ki=self.cart_y_ki, Kd=self.cart_y_kd)
         z_pid = PID(Kp=self.cart_z_kp, Ki=self.cart_z_ki, Kd=self.cart_z_kd)
-        x_pid.output_limits = (-0.02, 0.02)
-        y_pid.output_limits = (-0.02, 0.02) 
-        z_pid.output_limits = (-0.02, 0.02) 
+        x_pid.output_limits = (-0.5, 0.5)
+        y_pid.output_limits = (-0.5, 0.5) 
+        z_pid.output_limits = (-0.5, 0.5) 
 
         theta_pid = PID(Kp=self.angular_kp, Ki=self.angular_ki, Kd=self.angular_kd)
         theta_pid.output_limits = (-0.10, 0.10) 
 
-        timed_out = False
+        self.timed_out = False
         last_time_spoke = None
 
         rate = rospy.Rate(self.pub_rate) # 10hz
@@ -216,18 +234,6 @@ class Tracker:
                 q_f = quat_from_orientation(self.finger_pose.pose.orientation)
                 q_r = quaternion_multiply( q_t , quaternion_inverse(q_f))                
                 angular_error, ax, ay, az = angle_axis(q_r)
-
-                rospy.loginfo('Elapsed time: %f' % self.total_time)
-                rospy.loginfo("Target  pose: " + pose2sting(self.target_pose.pose))
-                rospy.loginfo("Current pose: " + pose2sting(self.finger_pose.pose))
-
-                rospy.loginfo("Postional error    x: %.3f" % positional_error[0])
-                rospy.loginfo("Postional error    y: %.3f" % positional_error[1])
-                rospy.loginfo("Postional error    z: %.3f" % positional_error[2])
-                rospy.loginfo("Positional tolerance: %f" % (self.positional_tolerance))
-
-                rospy.loginfo("Angular error       : %f" % (angular_error))
-                rospy.loginfo("angular tolerance   : %f" % (self.angular_tolerance))
 
                 #get twist linear values from PID controllers
                 t_l_x = x_pid(positional_error[0], dt)
@@ -273,10 +279,11 @@ class Tracker:
                 entry['finger_pitch'] = self.finger_pitch 
                 entry['finger_yaw'] = self.finger_yaw 
 
-                data.append(entry)
+                self.data.append(entry)
                 
                 pose_vel = TwistStamped()
-                pose_vel.header = self.finger_pose.header
+                pose_vel.header = self.target_pose.header
+                pose_vel.header.frame_id = self.base_frame
                 pose_vel.header.stamp = rospy.Time.now()
 
                 pose_vel.twist.linear.x = t_l_x 
@@ -287,35 +294,49 @@ class Tracker:
                 pose_vel.twist.angular.y = t_a_y 
                 pose_vel.twist.angular.z = t_a_z 
 
+                '''
+                rospy.loginfo('Elapsed time: %f' % self.total_time)
+                rospy.loginfo("Target  pose: " + pose2sting(self.target_pose.pose))
+                rospy.loginfo("Current pose: " + pose2sting(self.finger_pose.pose))
+                rospy.loginfo("Postional error    x: %.3f" % positional_error[0])
+                rospy.loginfo("Postional error    y: %.3f" % positional_error[1])
+                rospy.loginfo("Postional error    z: %.3f" % positional_error[2])
+                rospy.loginfo("Positional tolerance: %f" % (self.positional_tolerance))
+                rospy.loginfo("Angular error       : %f" % (angular_error))
+                rospy.loginfo("angular tolerance   : %f" % (self.angular_tolerance))
+                
                 rospy.loginfo("Output: %.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f"%(pose_vel.twist.linear.x,pose_vel.twist.linear.y,pose_vel.twist.linear.z,pose_vel.twist.angular.x,pose_vel.twist.angular.y,pose_vel.twist.angular.z))
+                
+                '''
                 self.cart_vel_pub.publish(pose_vel)
                 
                 self.total_time += dt
                 if self.total_time > self.time_out:
-                    timed_out = True
+                    self.timed_out = True
 
                 rate.sleep()
 
         rospy.loginfo('pre writing')
-        data_csv = pd.DataFrame(data)
+        data_csv = pd.DataFrame(self.data)
         data_csv.to_csv('/home/iral/'+str(rospy.Time.now().to_sec())+'error.csv')#, index_label='timestamp')
         rospy.loginfo('post writing')
         rospy.sleep(5)
         
         #send zero twist to halt servoing
         pose_vel = zero_twist()
+        pose_vel.header.frame_id = self.base_frame
         rate = rospy.Rate(self.pub_rate) # 10hz
         for i in range(self.num_halt_msgs):
             pose_vel.header.stamp = rospy.Time.now()
             self.cart_vel_pub.publish(pose_vel)
             rate.sleep()
 
-        if timed_out:
+        if  self.timed_out:
             rospy.loginfo("Servoing timed out")
         else:
             rospy.loginfo("Servoing took %f seconds" % self.total_time)
 
-        return JoiningServoResponse(not timed_out)
+        return JoiningServoResponse(not self.timed_out)
 
 if __name__ == '__main__':
     track = Tracker()
