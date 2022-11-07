@@ -104,22 +104,24 @@ class GetTargetPose:
         #check if in workspace
         if target.pose.positon.x < self.min_x:
             target.in_worksapce.data = False
-            target.move_direction = "right"
-        if target.pose.positon.x > self.max_x:
+            target.move_direction += "to my right "
+        elif target.pose.positon.x > self.max_x:
             target.in_worksapce.data = False
-            target.move_direction = "left"
+            target.move_direction += "to my left "
+
         if target.pose.positon.y < self.min_y:
             target.in_worksapce.data = False
-            target.move_direction = "up"
-        if target.pose.positon.y > self.max_y:
+            target.move_direction += "up "
+        elif target.pose.positon.y > self.max_y:
             target.in_worksapce.data = False
-            target.move_direction = "down"
+            target.move_direction += "down "
+
         if target.pose.positon.z < self.min_z:
             target.in_worksapce.data = False
-            target.move_direction = "father"
-        if target.pose.positon.z > self.max_z:            
+            target.move_direction += "farther from me"
+        elif target.pose.positon.z > self.max_z:            
             target.in_worksapce.data = False
-            target.move_direction = "closer"
+            target.move_direction += "closer to me"
 
         stamped_pose = PoseStamped()
         stamped_pose.header = cathode.header

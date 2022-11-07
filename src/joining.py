@@ -29,6 +29,7 @@ class GoToTarget:
         self.interactive = True
 
         self.target_topic = "/target/target"
+        self.target_sub = rospy.Subscriber(self.target_topic , JoinPose, self.get_target)
 
         self.retry_times = 10      
 
@@ -49,8 +50,11 @@ class GoToTarget:
         self.hand_closed = [self.finger_full_closed, self.finger_full_closed, self.finger_full_open]
 
         self.standoff_distance = 0.35       #m
-
         self.goal_tolerance = 0.0025        #m
+
+        self.target = None
+        self.last_time_spoke = rospy.Time.now().to_sec()
+        self.presented = False
 
         self.hand_over_pose = PoseStamped()
         self.hand_over_pose.header.frame_id = "base_link"
@@ -147,55 +151,60 @@ class GoToTarget:
                 self.rivr_robot_speech.publish(string_msg)
                 repeat = input("Repeat (y/n): ")
 
+    def get_target(self, target):
+        near = target.near.data
+        too_close = target.too_close.data
+        see_anode = target.see_anode.data
+        see_cathode = target.see_cathode.data
+        in_workspace = target.in_workspace.data
+        directions = target.move_direction.split(' ')
 
-    def get_init_target(self):
-        count = 0
-        target = None
-        near = False
-        see_anode = False
-        see_cathode = False
-        last_time_spoke = None
-
-        while (target is None or not near or not see_anode or not see_cathode) and count < self.retry_times:
-            try:
-                target = rospy.wait_for_message(self.target_topic, JoinPose, timeout=5.0)
-                near = target.near.data
-                see_anode = target.see_anode.data
-                see_cathode = target.see_cathode.data
-
-                now = rospy.Time.now().to_sec()
-                if not see_anode and not see_cathode and (last_time_spoke is None or now > last_time_spoke+self.speech_delay):
-                    print(last_time_spoke, now)
-                    self.talk("Can you please move the red and green putty to where I can see tem?")
-                    last_time_spoke = rospy.Time.now().to_sec()
-
-                if not see_anode and (last_time_spoke is None or now > last_time_spoke+self.speech_delay):
-                    print(last_time_spoke, now)
-                    self.talk("Can you please move the red putty where I can see it?")
-                    last_time_spoke = rospy.Time.now().to_sec()
-
-                if not see_cathode and (last_time_spoke is None or now > last_time_spoke+self.speech_delay):
-                    self.talk("Can you please move the green putty where I can see it?")
-                    last_time_spoke = rospy.Time.now().to_sec()
-
-                if not near and (last_time_spoke is None or now > last_time_spoke+self.speech_delay):
-                    self.talk("Can you please move the putty closer together?")
-                    last_time_spoke = rospy.Time.now().to_sec()
-
-            except rospy.exceptions.ROSException:
-                rospy.loginfo("Timeout waiting for target")
-                count+=1
-                if count>= self.retry_times:
-                    if input("Keep retrying (y/n)?") == 'y':
-                        count = 0
-        
-        if target is not None:
+        now = rospy.Time.now().to_sec()
+        if not see_anode and not see_cathode and self.presented and now > self.last_time_spoke+self.speech_delay: 
+            self.valid_target = False
+            self.talk("Can you please move the red and green putty to where I can see tem?")
+            self.last_time_spoke = now
+        elif not see_anode and self.presented and now > self.last_time_spoke+self.speech_delay: 
+            self.valid_target = False
+            self.talk("Can you please move the red putty where I can see it?")
+            self.last_time_spoke = now
+        elif not see_cathode and self.presented and now > self.last_time_spoke+self.speech_delay: 
+            self.valid_target = False
+            self.talk("Can you please move the green putty where I can see it?")
+            self.last_time_spoke = now
+        elif not near and self.presented and now > self.last_time_spoke+self.speech_delay: 
+            self.valid_target = False
+            self.talk("Can you please move the putty closer together?")
+            self.last_time_spoke = now
+        elif not too_close and self.presented and now > self.last_time_spoke+self.speech_delay: 
+            self.valid_target = False
+            self.talk("Can you please move the putty a little further apart?")
+            self.last_time_spoke = now
+        elif not in_workspace and self.presented and now > self.last_time_spoke+self.speech_delay: 
+            self.valid_target = False
+            text  = "Can you please move the putty "
+            for i in len(directions):
+                text += directions[i]
+                if i < len(directions)-1:
+                    text += " and "
+            self.talk(text)
+            self.last_time_spoke = now
+        else:
             t = rospy.Time.now()
             target.header.stamp = t
             self.listener.waitForTransform(target.header.frame_id, self.planning_frame, t, rospy.Duration(4.0) )
-            goal_pose = self.listener.transformPose(self.planning_frame, target)
+            self.target = self.listener.transformPose(self.planning_frame, target)  
+            self.last_valid_target = rospy.time.now()  
+            self.valid_target = True
 
-            return goal_pose
+    def get_init_target(self):
+        count = 0
+        rate = rospy.rate(1)
+        while not self.valid_target and count < self.retry_times and not rospy.is_shutdown():
+            count += 1
+            rate.sleep()
+        
+        return self.target
 
     def move_arm(self, pose, speed):
         self.arm_move_group.set_max_velocity_scaling_factor(speed)
@@ -219,7 +228,7 @@ class GoToTarget:
     def experiment(self):
         self.failures = 0
                
-        '''#move to handover position
+        #move to handover position
         print('hand over pose')
         self.move_arm(self.hand_over_pose, 1.0)
         
@@ -234,30 +243,31 @@ class GoToTarget:
         self.grab.publish("grabbed")
         self.move_fingers(self.hand_closed)
         print('\nclosed hand')
-
         self.talk("Thank you")
 
         #move to retreat
         self.move_arm(self.hand_over_pose_retreat, 1.0)
-            '''
+    
         #move to intial positon above
         self.move_arm(self.intial_pose, 1.0)
         
 
-        '''self.talk("Can you please place the lead of the red wire into the red putty")
+        self.talk("Can you please place the lead of the red wire into the red putty")
         input("\nPress Enter to continue...")
 
         self.talk("Can you place the lead of the black wire into the green putty")
         input("\nPress Enter to continue...")
 
         self.talk("Can you hold the two pieces of putty up in front of me?")
-        input("\nPress Enter to continue...")'''
+        input("\nPress Enter to continue...")
         
         reached_target = False
         while not reached_target:
             input("\nWaiting for user to present, Press Enter to continue...")
 
+            self.presented = True
             standoff_pose = self.get_init_target()
+            self.presented = False
             standoff_pose.pose.position.z += self.standoff_distance
 
             print('standoff')
@@ -266,11 +276,13 @@ class GoToTarget:
             self.move_arm(standoff_pose, 1.0)
             
             rospy.loginfo('pre servo')
+            self.presented = True
             print(self.servo())
+            self.presented = False
             rospy.loginfo('post servo')
             
             #check if should open hand
-            #self.talk("did the L E D light up")
+            self.talk("did the L E D light up")
             i = input("Open hand (y/n) ")
             if i == 'y':
                 print('open hand')
