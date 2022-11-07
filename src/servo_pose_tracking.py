@@ -42,6 +42,7 @@ def quat2string(q):
 
     return "Orientation: %s" %  quat__str
 
+#get list from ros quaternion object
 def quat_from_orientation(orientation):
     q = [
         orientation.x,
@@ -51,6 +52,7 @@ def quat_from_orientation(orientation):
     ]
 
     return q
+
 
 def angle_axis(q):
     qx = q[0]
@@ -135,6 +137,7 @@ class Tracker:
         self.cart_vel_pub = rospy.Publisher('/my_gen3/servo_server/delta_twist_cmds', TwistStamped, queue_size=10)
         self.rivr_robot_speech = rospy.Publisher('/robotspeech', String, queue_size=10)
 
+        #just need for logging
         self.command_sub = rospy.Subscriber('/my_gen3/gen3_joint_trajectory_controller/command', JointTrajectory, self.get_command)
 
         self.service = rospy.Service('servo_pose_tracking', JoiningServo, self.track_pose)

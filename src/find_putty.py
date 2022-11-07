@@ -58,17 +58,29 @@ def reject_outliers(data, m=20):
 
     return data[s < m]
 
-class GetTargetPose:
+class FindPutty:
     def __init__(self):
-        rospy.init_node('GetTargetPose', anonymous=True)
+        
+        
+        rospy.init_node('find_putty', anonymous=True)
         self.bridge = CvBridge()
 
-
+        #Get type of putty (anode/cathode)
+        # used to name published topics (marker, pointcloud, object)
         self.type = rospy.get_param("~type", 'cathode')
+
+        #Virtual robot in RIVR or phyical robot
+        #   determines which topics to subscribe too
         is_sim = rospy.get_param("~rivr", True)
+
+
         self.debug = rospy.get_param("~debug", True) 
+
+        #step size to move through depth image
+        #   iterating through whole image too slow
         self.step = rospy.get_param("~step", 4)
 
+        #Range of colors to filter on
         min_r = rospy.get_param("~min_r", 0)
         max_r = rospy.get_param("~max_r", 64)
         min_g = rospy.get_param("~min_g", 80)
@@ -138,11 +150,14 @@ class GetTargetPose:
         else:
             rospy.loginfo("Empty "+self.type+" pointcloud")
         
+        #debugging messages for visualization
         rgb_masked = cv2.bitwise_and(rgb, rgb, mask=image_mask)
         self.img_pub.publish(self.bridge.cv2_to_imgmsg(rgb_masked, encoding="passthrough"))
         self.pc_pub.publish(pc2.create_cloud_xyz32(depth_ros_image.header, points))
         self.marker_pub.publish(get_marker(x,y,z,w,h,d,depth_ros_image.header.frame_id,self.type))
 
+        #generate the object
+        #   x,y,z position and depth,width, and height
         obj = Object()
         obj.header = depth_ros_image.header
         obj.point.x = x
@@ -154,6 +169,8 @@ class GetTargetPose:
         self.obj_pub.publish(obj)
         
 
+    #Iterate through the masked depth image
+    #   return a list of points in 3d space
     def get_pointcloud(self, depth_masked):
         point_list = []
         distances = []
@@ -163,18 +180,24 @@ class GetTargetPose:
                 if self.min_depth < d <  self.max_depth:
                     distances.append((d, r, c))
 
+        #if no valid points are found return the empty list
         if len(distances) == 0:
             return point_list
 
+        #filter out outliers and interate through the remaining points
         for dist in reject_outliers(np.asarray(distances), m=50):
+            #the depth image pixel value is the distance in millimeters
             d = dist[0]/1000.0
             r = dist[1]
             c = dist[2]
+
+            #get the camera center (cx,cy) and focal length (fx,fy)
             cx = self.cam_model.cx()
             cy = self.cam_model.cy()
             fx = self.cam_model.fx()
             fy = self.cam_model.fy()
 
+            #project the point into 3d space
             x = (c - cx)*d/fx
             y = (r - cy)*d/fy
             z = d
@@ -183,6 +206,8 @@ class GetTargetPose:
 
         return point_list
 
+    #from a list of points return the midpoint (x,y,z) and 
+    #   width, height, depth
     def get_centroid(self, points):
         cent_x = 0.0
         min_x = 9999.0
@@ -224,4 +249,4 @@ class GetTargetPose:
         return [cent_x,cent_y,cent_z, w, h, d]
 
 if __name__ == '__main__':
-    get_targets = GetTargetPose()
+    get_target = FindPutty()
