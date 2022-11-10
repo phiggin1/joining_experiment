@@ -129,23 +129,21 @@ class Tracker:
         self.near = True
         self.see_cathode = True
         self.see_anode = True 
-        self.speech_delay = 5.0
 
-        self.finger_sub = rospy.Subscriber('/test/finger_pose', PoseStamped, self.get_finger_pose)
-        self.target_sub = rospy.Subscriber('/target/target_pose', PoseStamped, self.get_target_pose)
-        #self.target_sub = rospy.Subscriber('/target/target', JoinPose, self.get_target_pose)
+        self.finger_sub = rospy.Subscriber('finger_pose', PoseStamped, self.get_finger_pose)
+        #self.target_sub = rospy.Subscriber('/target/target_pose', PoseStamped, self.get_target_pose)   #testing subscriber
+        self.target_sub = rospy.Subscriber('/target/target', JoinPose, self.get_target_pose)
         self.cart_vel_pub = rospy.Publisher('/my_gen3/servo_server/delta_twist_cmds', TwistStamped, queue_size=10)
-        self.rivr_robot_speech = rospy.Publisher('/robotspeech', String, queue_size=10)
 
         #just need for logging
-        self.command_sub = rospy.Subscriber('/my_gen3/gen3_joint_trajectory_controller/command', JointTrajectory, self.get_command)
+        #self.command_sub = rospy.Subscriber('/my_gen3/gen3_joint_trajectory_controller/command', JointTrajectory, self.get_command)
 
         self.service = rospy.Service('servo_pose_tracking', JoiningServo, self.track_pose)
 
         #self.track_pose(True)
         rospy.spin()
 
-    def get_command(self, cmd):
+    '''def get_command(self, cmd):
         t = rospy.Time.now().to_sec()
         joint_pos = cmd.points[0].positions
         entry = {} 
@@ -156,7 +154,7 @@ class Tracker:
             i+=1
 
         if not self.timed_out:
-            self.data.append(entry)
+            self.data.append(entry)'''
 
     def get_finger_pose(self, pose):
         t = rospy.Time.now()
@@ -164,15 +162,15 @@ class Tracker:
 
         self.listener.waitForTransform(pose.header.frame_id, self.base_frame, t, rospy.Duration(4.0) )
         self.finger_pose = self.listener.transformPose(self.base_frame, pose)
-        
-        (r, p, y) = euler_from_quaternion(quat_from_orientation(self.finger_pose.pose.orientation))
+
+        '''(r, p, y) = euler_from_quaternion(quat_from_orientation(self.finger_pose.pose.orientation))
                 
         self.finger_x = self.finger_pose.pose.position.x
         self.finger_y = self.finger_pose.pose.position.y
         self.finger_z = self.finger_pose.pose.position.z
         self.finger_roll = r
         self.finger_pitch = p
-        self.finger_yaw = y
+        self.finger_yaw = y'''
         
 
     def get_target_pose(self, tar_pose):
@@ -184,15 +182,15 @@ class Tracker:
         pose.header.stamp = t
         self.listener.waitForTransform(pose.header.frame_id, self.base_frame, t, rospy.Duration(4.0) )
         self.target_pose = self.listener.transformPose(self.base_frame, pose)
-        
-        (r, p, y) = euler_from_quaternion(quat_from_orientation(self.target_pose.pose.orientation))
+
+        '''(r, p, y) = euler_from_quaternion(quat_from_orientation(self.target_pose.pose.orientation))
                 
         self.target_x = self.target_pose.pose.position.x
         self.target_y = self.target_pose.pose.position.y
         self.target_z = self.target_pose.pose.position.z
         self.target_roll = r
         self.target_pitch = p
-        self.target_yaw = y
+        self.target_yaw = y'''
         
     def satisfy_tolerance(self, angular_error, positional_error):
         x_err = positional_error[0]
@@ -250,7 +248,7 @@ class Tracker:
                 t_a_y = ang_vel_magnitude * ay
                 t_a_z = ang_vel_magnitude * az
                 
-                entry = {} 
+                '''entry = {} 
                 entry['timestamp'] = time
 
                 entry['error_theta'] = angular_error
@@ -282,7 +280,7 @@ class Tracker:
                 entry['finger_pitch'] = self.finger_pitch 
                 entry['finger_yaw'] = self.finger_yaw 
 
-                self.data.append(entry)
+                self.data.append(entry)'''
                 
                 pose_vel = TwistStamped()
                 pose_vel.header = self.target_pose.header
@@ -297,10 +295,10 @@ class Tracker:
                 pose_vel.twist.angular.y = t_a_y 
                 pose_vel.twist.angular.z = t_a_z 
 
-                '''
+                
                 rospy.loginfo('Elapsed time: %f' % self.total_time)
-                rospy.loginfo("Target  pose: " + pose2sting(self.target_pose.pose))
-                rospy.loginfo("Current pose: " + pose2sting(self.finger_pose.pose))
+                #rospy.loginfo("Target  pose: " + pose2sting(self.target_pose.pose))
+                #rospy.loginfo("Current pose: " + pose2sting(self.finger_pose.pose))
                 rospy.loginfo("Postional error    x: %.3f" % positional_error[0])
                 rospy.loginfo("Postional error    y: %.3f" % positional_error[1])
                 rospy.loginfo("Postional error    z: %.3f" % positional_error[2])
@@ -310,7 +308,7 @@ class Tracker:
                 
                 rospy.loginfo("Output: %.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f"%(pose_vel.twist.linear.x,pose_vel.twist.linear.y,pose_vel.twist.linear.z,pose_vel.twist.angular.x,pose_vel.twist.angular.y,pose_vel.twist.angular.z))
                 
-                '''
+                
                 self.cart_vel_pub.publish(pose_vel)
                 
                 self.total_time += dt
@@ -319,11 +317,11 @@ class Tracker:
 
                 rate.sleep()
 
-        rospy.loginfo('pre writing')
+        '''rospy.loginfo('pre writing')
         data_csv = pd.DataFrame(self.data)
         data_csv.to_csv('/home/iral/'+str(rospy.Time.now().to_sec())+'error.csv')#, index_label='timestamp')
         rospy.loginfo('post writing')
-        rospy.sleep(5)
+        rospy.sleep(5)'''
         
         #send zero twist to halt servoing
         pose_vel = zero_twist()
