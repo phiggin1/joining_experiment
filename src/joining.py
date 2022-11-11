@@ -33,20 +33,13 @@ class GoToTarget:
 
         self.retry_times = 10      
 
-        if self.is_sim:
-            joint_state_topic = ['joint_states:=/joint_states']
-            self.finger_full_open = 0.0
-            self.finger_open = 1.0
-            self.finger_full_closed = 1.2
-        else:
-            joint_state_topic = ['joint_states:=/j2n6s300_driver/out/joint_state']
-            self.finger_full_open = 0.0
-            self.finger_open = 1.20
-            self.finger_full_closed = 1.325      
+        self.finger_open = 1.0
+        self.finger_partial_closed = 0.8
+        self.finger_closed = 0.8
 
         self.speech_delay = 8.0
 
-        self.hand_open = [self.finger_open, self.finger_open, self.finger_full_open]
+        self.hand_open = [self.finger_partial_closed, self.finger_partial_closed, self.finger_full_open]
         self.hand_closed = [self.finger_full_closed, self.finger_full_closed, self.finger_full_open]
 
         self.standoff_distance = 0.35       #m
@@ -89,8 +82,7 @@ class GoToTarget:
         self.listener = tf.TransformListener()
         
 
-        print(joint_state_topic)
-        moveit_commander.roscpp_initialize(joint_state_topic)
+        moveit_commander.roscpp_initialize(sys.argv)
 
         self.robot = moveit_commander.RobotCommander()
         self.scene = moveit_commander.PlanningSceneInterface()

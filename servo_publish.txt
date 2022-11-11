@@ -115,14 +115,21 @@ pose:
     x: -0.707
     y: 0.707
     z: 0.0
-    w: 0.0
-near:
-  data: true
-see_anode:
-  data: true
-see_cathode:
-  data: true"
+    w: 0.0"
   
+rostopic pub -r 10 -s /target/target_pose geometry_msgs/PoseStamped "header: 
+  stamp: now
+  frame_id: base_link
+pose:
+  position:
+    x: 0.62
+    y: 0.0
+    z: 0.0
+  orientation:
+    x: -0.707
+    y: 0.707
+    z: 0.0
+    w: 0.0"
 
 
 0.5734,0.0014,0.4236
