@@ -34,8 +34,8 @@ class GoToTarget:
         self.retry_times = 10      
 
         self.finger_open = 1.0
-        self.finger_partial_closed = 0.8
-        self.finger_closed = 0.8
+        self.finger_partial_closed = 0.68
+        self.finger_closed = 0.74
 
         self.speech_delay = 8.0
 
