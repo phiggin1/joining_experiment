@@ -93,8 +93,13 @@ class FindPutty:
         self.max_depth = rospy.get_param("max_depth", 1500.0)
 
         # Threshold of anode (red) in BGR space
-        self.min_color = np.array([min_b, min_g, min_r])
-        self.max_color = np.array([max_b, max_g, max_r])
+        #self.min_color = np.array([min_b, min_g, min_r])
+        #self.max_color = np.array([max_b, max_g, max_r])
+        
+        
+        # Threshold of anode (red) in BGR space
+        self.min_color = np.array([min_r, min_g, min_b])
+        self.max_color = np.array([max_r, max_g, max_b])
 
         rospy.loginfo("%s max r:%i max g:%i max b:%i" % (self.type, max_r, max_g, max_b))
 
@@ -102,20 +107,21 @@ class FindPutty:
             rospy.loginfo("virtual robot")
             self.depth_cam_info = rospy.wait_for_message("/camera/unityrgb/camera_info", CameraInfo, timeout=None)
             self.rgb_image_sub = message_filters.Subscriber('/camera/unityrgb/image_raw', Image)
-            self.depth_image_sub = message_filters.Subscriber('/camera/unitydepth/image_raw', Image)
+            selfro.depth_image_sub = message_filters.Subscriber('/camera/unitydepth/image_raw', Image)
         else:
             rospy.loginfo("physical robot")
-            self.depth_cam_info = rospy.wait_for_message("/kinect2/sd/camera_info", CameraInfo, timeout=None)
-            self.rgb_image_sub = message_filters.Subscriber('/kinect2/sd/image_color_rect', Image)
-            self.depth_image_sub = message_filters.Subscriber('/kinect2/sd/image_depth_rect', Image)
+         
+            self.depth_cam_info = rospy.wait_for_message("/camera/color/camera_info", CameraInfo, timeout=None)
+            self.rgb_image_sub = message_filters.Subscriber('/camera/color/image_rect_color', Image)
+            self.depth_image_sub = message_filters.Subscriber('/camera/depth/image_rect', Image)
 
         self.cam_model = image_geometry.PinholeCameraModel()
         self.cam_model.fromCameraInfo(self.depth_cam_info)
 
         self.img_pub = rospy.Publisher('/target/image_'+self.type, Image, queue_size=10)
-        self.pc_pub = rospy.Publisher('/target/pc_'+self.type, PointCloud2, queue_size=10)
-        self.marker_pub = rospy.Publisher('/target/marker_'+self.type, Marker, queue_size=10)
-        self.obj_pub = rospy.Publisher('/target/object_'+self.type, Object, queue_size=10)
+        #self.pc_pub = rospy.Publisher('/target/pc_'+self.type, PointCloud2, queue_size=10)
+        #self.marker_pub = rospy.Publisher('/target/marker_'+self.type, Marker, queue_size=10)
+        #self.obj_pub = rospy.Publisher('/target/object_'+self.type, Object, queue_size=10)
 
         self.ts = message_filters.ApproximateTimeSynchronizer([self.rgb_image_sub, self.depth_image_sub], 10, slop=2.0)
         self.ts.registerCallback(self.callback)
@@ -123,12 +129,15 @@ class FindPutty:
         rospy.spin()
 
     def callback(self, rgb_ros_image, depth_ros_image):
+        print("type:%s encoding:%s" % (self.type, rgb_ros_image.encoding))
+
         rgb = np.asarray(self.bridge.imgmsg_to_cv2(rgb_ros_image, desired_encoding="passthrough"))
         depth = np.asarray(self.bridge.imgmsg_to_cv2(depth_ros_image, desired_encoding="passthrough"))
         blur = cv2.GaussianBlur(rgb, (21, 21), 5)
 
         # preparing the mask to overlay
         image_mask = cv2.inRange(blur, self.min_color, self.max_color)
+        '''
         depth_masked = cv2.bitwise_and(depth, depth, mask=image_mask)
         points = self.get_pointcloud(depth_masked)
 
@@ -149,13 +158,13 @@ class FindPutty:
 
         else:
             rospy.loginfo("Empty "+self.type+" pointcloud")
-        
+        '''
         #debugging messages for visualization
         rgb_masked = cv2.bitwise_and(rgb, rgb, mask=image_mask)
         self.img_pub.publish(self.bridge.cv2_to_imgmsg(rgb_masked, encoding="passthrough"))
-        self.pc_pub.publish(pc2.create_cloud_xyz32(depth_ros_image.header, points))
-        self.marker_pub.publish(get_marker(x,y,z,w,h,d,depth_ros_image.header.frame_id,self.type))
-
+        #self.pc_pub.publish(pc2.create_cloud_xyz32(depth_ros_image.header, points))
+        #self.marker_pub.publish(get_marker(x,y,z,w,h,d,depth_ros_image.header.frame_id,self.type))
+        '''
         #generate the object
         #   x,y,z position and depth,width, and height
         obj = Object()
@@ -167,6 +176,7 @@ class FindPutty:
         obj.h.data = h
         obj.d.data = d
         self.obj_pub.publish(obj)
+        '''
         
 
     #Iterate through the masked depth image
