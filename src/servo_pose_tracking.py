@@ -8,7 +8,7 @@ from geometry_msgs.msg import PoseStamped, TwistStamped
 from joining_experiment.msg import JoinPose
 from tf.transformations import euler_from_quaternion, quaternion_from_euler, quaternion_inverse, quaternion_multiply
 import numpy as np
-import pandas as pd
+#import pandas as pd
 from simple_pid import PID
 from joining_experiment.srv import JoiningServo, JoiningServoResponse
 from trajectory_msgs.msg import JointTrajectory

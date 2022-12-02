@@ -61,11 +61,11 @@ class GetTargetPose:
         target.pose.orientation.w = 1.0
         
         #error checking
-        target.near.data = True         #cathode and anode close enough
+        target.too_far.data = False     #cathode and anode close enough
+        target.too_close.data = False   #cathode and anode far enough apart to not be touching
         target.see_cathode.data = True  #can see cathode
         target.see_anode.data = True    #can see anode
-        target.too_close.data = False   #cathode and anode far enough apart to not be touching
-        target.in_worksapce.data = True #is cathode&anode in workspace
+        target.in_workspace.data = True #is cathode&anode in workspace
         target.move_direction = ""      #   if not move right/left/up/down/closer/farther
 
         #vectort from anode to cathode
@@ -80,10 +80,12 @@ class GetTargetPose:
 
         #check if to cathode or anode are too close/far
         d = dist(pa, pc)
-        if d < self.min_dist:
+
+
+        if d <= self.min_dist:
             target.too_close = True
         elif d > self.max_dist:
-            target.near.data = False
+            target.too_far.data = True
 
         #yaw (in kinect frame around y axis)
         theta = np.arccos( dot(a,b)/(norm(a)*norm(b)) )
@@ -101,27 +103,30 @@ class GetTargetPose:
         target.pose.orientation.z = quat[2]
         target.pose.orientation.w = quat[3]
 
+        move_direction = ""
         #check if in workspace
-        if target.pose.positon.x < self.min_x:
-            target.in_worksapce.data = False
-            target.move_direction += "to my right "
-        elif target.pose.positon.x > self.max_x:
-            target.in_worksapce.data = False
-            target.move_direction += "to my left "
+        if target.pose.position.x < self.min_x:
+            target.in_workspace.data = False
+            move_direction += "to my right "
+        elif target.pose.position.x > self.max_x:
+            target.in_workspace.data = False
+            move_direction += "to my left "
 
-        if target.pose.positon.y < self.min_y:
-            target.in_worksapce.data = False
-            target.move_direction += "up "
-        elif target.pose.positon.y > self.max_y:
-            target.in_worksapce.data = False
-            target.move_direction += "down "
+        if target.pose.position.y < self.min_y:
+            target.in_workspace.data = False
+            move_direction += "up "
+        elif target.pose.position.y > self.max_y:
+            target.in_workspace.data = False
+            move_direction += "down "
 
-        if target.pose.positon.z < self.min_z:
+        if target.pose.position.z < self.min_z:
             target.in_worksapce.data = False
-            target.move_direction += "farther from me"
-        elif target.pose.positon.z > self.max_z:            
+            move_direction += "farther from me"
+        elif target.pose.position.z > self.max_z:            
             target.in_worksapce.data = False
-            target.move_direction += "closer to me"
+            move_direction += "closer to me"
+
+        target.move_direction = move_direction
 
         stamped_pose = PoseStamped()
         stamped_pose.header = cathode.header
@@ -135,9 +140,11 @@ class GetTargetPose:
 
         self.pose_stamped_pub.publish(stamped_pose)
 
-        #rospy.loginfo("positon:     x:%.4f\ty:%.4f\tz:%.4f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
+        rospy.loginfo("positon:     x:%.4f\ty:%.4f\tz:%.4f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
         #rospy.loginfo("orientation: x:%.4f\ty:%.4f\tz:%.4f\tw:%.4f" % (target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z, target.pose.orientation.w))
         
+        print(target)
+
         self.target_pub.publish(target)
 
 if __name__ == '__main__':
