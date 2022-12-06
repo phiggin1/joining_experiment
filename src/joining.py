@@ -40,35 +40,9 @@ class GoToTarget:
         self.last_time_spoke = rospy.Time.now().to_sec()
         self.presented = False
 
-        self.hand_over_pose = PoseStamped()
-        self.hand_over_pose.header.frame_id = "base_link"
-        self.hand_over_pose.pose.position.x = 0.2
-        self.hand_over_pose.pose.position.y = 0.0
-        self.hand_over_pose.pose.position.z = 0.3
-        self.hand_over_pose.pose.orientation.x = -0.5
-        self.hand_over_pose.pose.orientation.y = -0.5
-        self.hand_over_pose.pose.orientation.z =  0.5
-        self.hand_over_pose.pose.orientation.w =  0.5
-
-        self.hand_over_pose_retreat = PoseStamped()
-        self.hand_over_pose_retreat.header.frame_id = "base_link"
-        self.hand_over_pose_retreat.pose.position.x = 0.15
-        self.hand_over_pose_retreat.pose.position.y = 0.0
-        self.hand_over_pose_retreat.pose.position.z = 0.3
-        self.hand_over_pose_retreat.pose.orientation.x = -0.5
-        self.hand_over_pose_retreat.pose.orientation.y = -0.5
-        self.hand_over_pose_retreat.pose.orientation.z =  0.5
-        self.hand_over_pose_retreat.pose.orientation.w =  0.5
-
-        self.intial_pose = PoseStamped()
-        self.intial_pose.header.frame_id = "base_link"
-        self.intial_pose.pose.position.x =  0.48
-        self.intial_pose.pose.position.y = -0.18
-        self.intial_pose.pose.position.z =  1.19
-        self.intial_pose.pose.orientation.x = 0.0
-        self.intial_pose.pose.orientation.y = 0.0
-        self.intial_pose.pose.orientation.z = 0.707
-        self.intial_pose.pose.orientation.w = 0.707
+        self.hand_over_pose =           [0.0, 0.26, -2.27, 0.0,  0.96, 1.57]
+        self.hand_over_pose_retreat =   [0.0, 0.0,  -2.61, 0.0,  1.04, 1.57]
+        self.intial_pose =              [0.0, 0.0,  -1.14, 0.0, -1.67, 1.57]
 
         self.listener = tf.TransformListener()
         
@@ -91,7 +65,7 @@ class GoToTarget:
 
         self.rivr_robot_speech = rospy.Publisher('/text_to_speech', String, queue_size=10)
         self.grab = rospy.Publisher('buttons', String, queue_size=10)
-        
+
         self.target_topic = "/target/target"
         self.target_sub = rospy.Subscriber(self.target_topic , JoinPose, self.get_target)
 
@@ -220,7 +194,9 @@ class GoToTarget:
                
         #move to handover position
         print('hand over pose')
-        self.move_arm(self.hand_over_pose, 1.0)
+        self.arm_move_group.set_max_velocity_scaling_factor(1.0)
+        self.arm_move_group.go(self.hand_over_pose, wait=True)
+
         
         print('open hand')
         self.move_fingers(self.hand_open)
@@ -236,12 +212,13 @@ class GoToTarget:
         self.talk("Thank you")
 
         #move to retreat
-        self.move_arm(self.hand_over_pose_retreat, 1.0)
+        self.arm_move_group.set_max_velocity_scaling_factor(1.0)
+        self.arm_move_group.go(self.hand_over_pose_retreat, wait=True)
     
         #move to intial positon above
-        self.move_arm(self.intial_pose, 1.0)
+        self.arm_move_group.set_max_velocity_scaling_factor(1.0)
+        self.arm_move_group.go(self.intial_pose, wait=True)
         
-
         self.talk("Can you please place the lead of the red wire into the red putty")
         input("\nPress Enter to continue...")
 
