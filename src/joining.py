@@ -20,27 +20,18 @@ class GoToTarget:
         self.stop = False
         rospy.init_node('joining_exp')
 
-        self.grab = rospy.Publisher('buttons', String, queue_size=10)
-
         self.is_sim = rospy.get_param("~rivr", False)
 
-        self.rivr_robot_speech = rospy.Publisher('/text_to_speech', String, queue_size=10)
-
         self.interactive = True
-
-        self.target_topic = "/target/target"
-        self.target_sub = rospy.Subscriber(self.target_topic , JoinPose, self.get_target)
-
         self.retry_times = 10      
+        self.speech_delay = 8.0
 
         self.finger_open = 1.0
         self.finger_partial_closed = 0.68
         self.finger_closed = 0.74
-
-        self.speech_delay = 8.0
-
-        self.hand_open = [self.finger_partial_closed, self.finger_partial_closed, self.finger_full_open]
-        self.hand_closed = [self.finger_full_closed, self.finger_full_closed, self.finger_full_open]
+        self.hand_open = [self.finger_open]
+        self.hand_partial_closed = [self.finger_partial_closed]
+        self.hand_closed = [self.finger_closed]
 
         self.standoff_distance = 0.35       #m
         self.goal_tolerance = 0.0025        #m
@@ -51,9 +42,9 @@ class GoToTarget:
 
         self.hand_over_pose = PoseStamped()
         self.hand_over_pose.header.frame_id = "base_link"
-        self.hand_over_pose.pose.position.x =  0.55
-        self.hand_over_pose.pose.position.y = -0.08
-        self.hand_over_pose.pose.position.z =  0.95
+        self.hand_over_pose.pose.position.x = 0.2
+        self.hand_over_pose.pose.position.y = 0.0
+        self.hand_over_pose.pose.position.z = 0.3
         self.hand_over_pose.pose.orientation.x = -0.5
         self.hand_over_pose.pose.orientation.y = -0.5
         self.hand_over_pose.pose.orientation.z =  0.5
@@ -61,9 +52,9 @@ class GoToTarget:
 
         self.hand_over_pose_retreat = PoseStamped()
         self.hand_over_pose_retreat.header.frame_id = "base_link"
-        self.hand_over_pose_retreat.pose.position.x =  0.50
-        self.hand_over_pose_retreat.pose.position.y = -0.08
-        self.hand_over_pose_retreat.pose.position.z =  0.95
+        self.hand_over_pose_retreat.pose.position.x = 0.15
+        self.hand_over_pose_retreat.pose.position.y = 0.0
+        self.hand_over_pose_retreat.pose.position.z = 0.3
         self.hand_over_pose_retreat.pose.orientation.x = -0.5
         self.hand_over_pose_retreat.pose.orientation.y = -0.5
         self.hand_over_pose_retreat.pose.orientation.z =  0.5
@@ -81,23 +72,28 @@ class GoToTarget:
 
         self.listener = tf.TransformListener()
         
-
         moveit_commander.roscpp_initialize(sys.argv)
 
         self.robot = moveit_commander.RobotCommander()
         self.scene = moveit_commander.PlanningSceneInterface()
 
-        self.arm_group_name = "right_arm"
+        self.arm_group_name = "arm"
         self.arm_move_group = moveit_commander.MoveGroupCommander(self.arm_group_name)
         self.arm_move_group.set_max_velocity_scaling_factor(0.25)
         self.arm_move_group.set_goal_position_tolerance(self.goal_tolerance)
         
-        self.hand_group_name = "right_hand"
+        self.hand_group_name = "gripper"
         self.hand_move_group = moveit_commander.MoveGroupCommander(self.hand_group_name)
         self.hand_move_group.set_max_velocity_scaling_factor(1.0)
         self.hand_move_group.set_goal_position_tolerance(self.goal_tolerance)
 
         self.planning_frame = self.arm_move_group.get_planning_frame()
+
+        self.rivr_robot_speech = rospy.Publisher('/text_to_speech', String, queue_size=10)
+        self.grab = rospy.Publisher('buttons', String, queue_size=10)
+        
+        self.target_topic = "/target/target"
+        self.target_sub = rospy.Subscriber(self.target_topic , JoinPose, self.get_target)
 
         '''
         rospy.sleep(2)
@@ -144,7 +140,9 @@ class GoToTarget:
                 repeat = input("Repeat (y/n): ")
 
     def get_target(self, target):
-        near = target.near.data
+        too_far = target.too_far.data
+        too_close = target.too_close.data
+            
         too_close = target.too_close.data
         see_anode = target.see_anode.data
         see_cathode = target.see_cathode.data
@@ -164,7 +162,7 @@ class GoToTarget:
             self.valid_target = False
             self.talk("Can you please move the green putty where I can see it?")
             self.last_time_spoke = now
-        elif not near and self.presented and now > self.last_time_spoke+self.speech_delay: 
+        elif not too_far and self.presented and now > self.last_time_spoke+self.speech_delay: 
             self.valid_target = False
             self.talk("Can you please move the putty closer together?")
             self.last_time_spoke = now
@@ -182,16 +180,15 @@ class GoToTarget:
             self.talk(text)
             self.last_time_spoke = now
         else:
-            t = rospy.Time.now()
-            target.header.stamp = t
-            self.listener.waitForTransform(target.header.frame_id, self.planning_frame, t, rospy.Duration(4.0) )
+            self.listener.waitForTransform(target.header.frame_id, self.planning_frame, rospy.Time(), rospy.Duration(4.0) )
+            target.header.stamp = rospy.Time()
             self.target = self.listener.transformPose(self.planning_frame, target)  
-            self.last_valid_target = rospy.time.now()  
+            self.last_valid_target = rospy.Time.now()  
             self.valid_target = True
 
     def get_init_target(self):
         count = 0
-        rate = rospy.rate(1)
+        rate = rospy.Rate(1)
         while not self.valid_target and count < self.retry_times and not rospy.is_shutdown():
             count += 1
             rate.sleep()
@@ -206,7 +203,8 @@ class GoToTarget:
         self.arm_move_group.clear_pose_targets()
 
     def move_fingers(self, finger_positions):
-        self.hand_move_group.go(finger_positions, wait=True)
+        #self.hand_move_group.go(finger_positions, wait=True)
+        print(finger_positions)
 
     def servo(self):
         rospy.wait_for_service('JoiningServo')

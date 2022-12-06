@@ -5,7 +5,7 @@
        We do plan to accept pull requests of config files for other controller types using this method.
   <remap from="/joint_states" to="/j2n6s300/joint_states"/>
   -->
-  
+   
   <arg name="rivr" default="true" />
   
   <arg name="cath_min_r" default="0" />
@@ -59,7 +59,7 @@
   <node name="joining_servo" pkg="joining_experiment" type="servo_pose_tracking.py" output="screen" ns="my_gen3">
       <param name="rivr"  value="$(arg rivr)" />
   </node>
-  
+   
   <!-- This node does the servoing calculations  -->
   <node name="servo_server" pkg="moveit_servo" type="servo_server" output="screen" ns="my_gen3" >
     <rosparam command="load" file="$(find joining_experiment)/config/servo-config-gen3.yaml" />

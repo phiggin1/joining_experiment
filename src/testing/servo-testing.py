@@ -65,20 +65,26 @@ class GetJacobian:
 
         #move to home
         self.state = "moving home"
+        rospy.loginfo(self.state)
         self.arm_move_group.go(home_goal, wait=True)
         self.state = "home"
+        rospy.loginfo(self.state)
         rospy.sleep(0.1)
 
         #move ee down
         self.state = "moving down"
+        rospy.loginfo(self.state)
         self.arm_move_group.go(down_goal, wait=True)
         self.state = 'down'
+        rospy.loginfo(self.state)
         rospy.sleep(0.1)
 
         #move to home
         self.state = 'moving home'
+        rospy.loginfo(self.state)
         self.arm_move_group.go(home_goal, wait=True)
         self.state =  'home'
+        rospy.loginfo(self.state)
         rospy.sleep(0.1)
 
         publish_rate = 100
@@ -97,6 +103,18 @@ class GetJacobian:
         twist_stamped.twist.angular.z = 0.0 
 
         self.state = 'servoing drown'
+        rospy.loginfo(self.state)
+        while count < publish_rate*time_to_move:
+            twist_stamped.header.stamp = rospy.Time.now()
+            self.servo_pub.publish(twist_stamped)
+            count += 1
+            rate.sleep()
+
+
+        twist_stamped.twist.linear.z = 0.0
+        self.state = 'servoing zero twist'
+        count = 0
+        rospy.loginfo(self.state)
         while count < publish_rate*time_to_move:
             twist_stamped.header.stamp = rospy.Time.now()
             self.servo_pub.publish(twist_stamped)
@@ -105,18 +123,20 @@ class GetJacobian:
 
         #move to home
         self.state = 'moving home'
+        rospy.loginfo(self.state)
         self.arm_move_group.go(home_goal, wait=True)
         self.state =  'home'
+        rospy.loginfo(self.state)
         rospy.sleep(0.1)
 
         #rospy.spin()
-        rospy.loginfo('pre writing')
+        '''rospy.loginfo('pre writing')
         data_csv = pd.DataFrame(self.data)
         data_csv.to_csv('/home/iral/'+str(rospy.Time.now().to_sec())+'jacobian.csv')
         rospy.loginfo('post writing')
-        rospy.sleep(1)
+        rospy.sleep(1)'''
 
-        ax1 = data_csv.plot.scatter(x='timestamp', y='joint_vel_1')
+        #ax1 = data_csv.plot.scatter(x='timestamp', y='joint_vel_1')
 
 
     def joint_cb(self, joint_state):
