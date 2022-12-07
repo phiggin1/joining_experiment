@@ -207,7 +207,7 @@ class GoToTarget:
         self.move_fingers(self.hand_partial_closed)
 
 
-        self.talk("Can you please put the l e d between my fingers? The shorter lead should be on your right.")
+        self.talk("Can you please put the l e d between my fingers? The leads should be facing you with the shorter lead should be on your right.")
         
 
         #give acknowledgement?
