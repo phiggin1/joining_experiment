@@ -95,12 +95,12 @@ class Tracker:
         self.positional_tolerance = 0.01
         self.angular_tolerance = 0.1
 
-        self.pub_rate = 100 #hz
+        self.pub_rate = 200 #hz
 
         #number of zero twist halt msgs to send to get servo_server to halt
         self.num_halt_msgs = 20
 
-        self.time_out = 5.0
+        self.time_out = 30.0
 
         self.is_sim = rospy.get_param("~rivr", True)
         if self.is_sim:
@@ -174,14 +174,18 @@ class Tracker:
         
 
     def get_target_pose(self, tar_pose):
-        pose = PoseStamped()
-        pose.header = tar_pose.header
-        pose.pose = tar_pose.pose
+        if (not tar_pose.too_far.data and not tar_pose.too_close.data and
+            tar_pose.see_cathode.data and tar_pose.see_anode.data and
+            tar_pose.in_workspace.data):
 
-        t = rospy.Time.now()
-        pose.header.stamp = t
-        self.listener.waitForTransform(pose.header.frame_id, self.base_frame, t, rospy.Duration(4.0) )
-        self.target_pose = self.listener.transformPose(self.base_frame, pose)
+            pose = PoseStamped()
+            pose.header = tar_pose.header
+            pose.pose = tar_pose.pose
+
+            t = rospy.Time.now()
+            pose.header.stamp = t
+            self.listener.waitForTransform(pose.header.frame_id, self.base_frame, t, rospy.Duration(4.0) )
+            self.target_pose = self.listener.transformPose(self.base_frame, pose)
 
         '''(r, p, y) = euler_from_quaternion(quat_from_orientation(self.target_pose.pose.orientation))
                 
@@ -213,9 +217,9 @@ class Tracker:
         x_pid = PID(Kp=self.cart_x_kp, Ki=self.cart_x_ki, Kd=self.cart_x_kd)
         y_pid = PID(Kp=self.cart_y_kp, Ki=self.cart_y_ki, Kd=self.cart_y_kd)
         z_pid = PID(Kp=self.cart_z_kp, Ki=self.cart_z_ki, Kd=self.cart_z_kd)
-        x_pid.output_limits = (-0.5, 0.5)
-        y_pid.output_limits = (-0.5, 0.5) 
-        z_pid.output_limits = (-0.5, 0.5) 
+        x_pid.output_limits = (-1.0, 1.0)
+        y_pid.output_limits = (-1.0, 1.0) 
+        z_pid.output_limits = (-1.0, 1.0) 
 
         theta_pid = PID(Kp=self.angular_kp, Ki=self.angular_ki, Kd=self.angular_kd)
         theta_pid.output_limits = (-0.10, 0.10) 
@@ -297,8 +301,8 @@ class Tracker:
 
                 
                 rospy.loginfo('Elapsed time: %f' % self.total_time)
-                #rospy.loginfo("Target  pose: " + pose2sting(self.target_pose.pose))
-                #rospy.loginfo("Current pose: " + pose2sting(self.finger_pose.pose))
+                rospy.loginfo("Target  pose: " + pose2sting(self.target_pose.pose))
+                rospy.loginfo("Current pose: " + pose2sting(self.finger_pose.pose))
                 rospy.loginfo("Postional error    x: %.3f" % positional_error[0])
                 rospy.loginfo("Postional error    y: %.3f" % positional_error[1])
                 rospy.loginfo("Postional error    z: %.3f" % positional_error[2])

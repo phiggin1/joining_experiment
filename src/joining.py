@@ -26,23 +26,28 @@ class GoToTarget:
         self.retry_times = 10      
         self.speech_delay = 8.0
 
-        self.finger_open = 1.0
+        self.finger_open = 0.01
         self.finger_partial_closed = 0.68
         self.finger_closed = 0.74
-        self.hand_open = [self.finger_open]
-        self.hand_partial_closed = [self.finger_partial_closed]
-        self.hand_closed = [self.finger_closed]
 
-        self.standoff_distance = 0.35       #m
+        self.hand_open = [self.finger_open, self.finger_open, self.finger_open, 
+                          self.finger_open, self.finger_open, self.finger_open]
+        self.hand_partial_closed = [self.finger_partial_closed, self.finger_partial_closed, self.finger_partial_closed, 
+                                    self.finger_partial_closed, self.finger_partial_closed, self.finger_partial_closed]
+        self.hand_closed = [self.finger_closed, self.finger_closed, self.finger_closed, 
+                            self.finger_closed, self.finger_closed, self.finger_closed]
+
+        self.standoff_distance = 0.15       #m
         self.goal_tolerance = 0.0025        #m
 
+        self.valid_target = False
         self.target = None
         self.last_time_spoke = rospy.Time.now().to_sec()
         self.presented = False
 
         self.hand_over_pose =           [0.0, 0.26, -2.27, 0.0,  0.96, 1.57]
         self.hand_over_pose_retreat =   [0.0, 0.0,  -2.61, 0.0,  1.04, 1.57]
-        self.intial_pose =              [0.0, 0.0,  -1.14, 0.0, -1.67, 1.57]
+        self.intial_pose =              [0.0, 0.31,  -1.14, 0.0, -1.67, 1.57]
 
         self.listener = tf.TransformListener()
         
@@ -106,20 +111,20 @@ class GoToTarget:
         return False
 
     def talk(self, text):
-            print("Saying rivr: " + text)
+        print("Saying rivr: " + text)
+        self.rivr_robot_speech.publish(text)
+        repeat = input("Repeat (y/n): ")
+        while (repeat == 'y'):
             self.rivr_robot_speech.publish(text)
             repeat = input("Repeat (y/n): ")
-            while (repeat == 'y'):
-                self.rivr_robot_speech.publish(string_msg)
-                repeat = input("Repeat (y/n): ")
 
     def get_target(self, target):
         too_far = target.too_far.data
         too_close = target.too_close.data
             
-        too_close = target.too_close.data
         see_anode = target.see_anode.data
         see_cathode = target.see_cathode.data
+
         in_workspace = target.in_workspace.data
         directions = target.move_direction.split(' ')
 
@@ -136,18 +141,18 @@ class GoToTarget:
             self.valid_target = False
             self.talk("Can you please move the green putty where I can see it?")
             self.last_time_spoke = now
-        elif not too_far and self.presented and now > self.last_time_spoke+self.speech_delay: 
+        elif too_far and self.presented and now > self.last_time_spoke+self.speech_delay: 
             self.valid_target = False
             self.talk("Can you please move the putty closer together?")
             self.last_time_spoke = now
-        elif not too_close and self.presented and now > self.last_time_spoke+self.speech_delay: 
+        elif too_close and self.presented and now > self.last_time_spoke+self.speech_delay: 
             self.valid_target = False
             self.talk("Can you please move the putty a little further apart?")
             self.last_time_spoke = now
         elif not in_workspace and self.presented and now > self.last_time_spoke+self.speech_delay: 
             self.valid_target = False
             text  = "Can you please move the putty "
-            for i in len(directions):
+            for i in range(len(directions)):
                 text += directions[i]
                 if i < len(directions)-1:
                     text += " and "
@@ -177,13 +182,13 @@ class GoToTarget:
         self.arm_move_group.clear_pose_targets()
 
     def move_fingers(self, finger_positions):
-        #self.hand_move_group.go(finger_positions, wait=True)
+        self.hand_move_group.go(finger_positions, wait=True)
         print(finger_positions)
 
     def servo(self):
-        rospy.wait_for_service('JoiningServo')
+        rospy.wait_for_service('servo_pose_tracking')
         try:
-            joining_servo = rospy.ServiceProxy('JoiningServo', JoiningServo)
+            joining_servo = rospy.ServiceProxy('servo_pose_tracking', JoiningServo)
             resp = joining_servo()
             return resp.resp
         except rospy.ServiceException as e:
@@ -199,7 +204,7 @@ class GoToTarget:
 
         
         print('open hand')
-        self.move_fingers(self.hand_open)
+        self.move_fingers(self.hand_partial_closed)
 
 
         self.talk("Can you please put the l e d between my fingers? The shorter lead should be on your right.")
@@ -210,7 +215,7 @@ class GoToTarget:
         self.move_fingers(self.hand_closed)
         print('\nclosed hand')
         self.talk("Thank you")
-
+        
         #move to retreat
         self.arm_move_group.set_max_velocity_scaling_factor(1.0)
         self.arm_move_group.go(self.hand_over_pose_retreat, wait=True)
@@ -234,8 +239,10 @@ class GoToTarget:
 
             self.presented = True
             standoff_pose = self.get_init_target()
+            print(standoff_pose.pose.position)
             self.presented = False
             standoff_pose.pose.position.z += self.standoff_distance
+            print(standoff_pose.pose.position)
 
             print('standoff')
             print(standoff_pose.pose.position)
@@ -261,18 +268,18 @@ class GoToTarget:
                 self.talk("i will try again")
                 self.failures += 1
             
-            print('standoff')
-            print(standoff_pose.pose.position)
-            self.move_arm(standoff_pose, 1.0)
+            print('inital')
+            self.arm_move_group.go(self.intial_pose, wait=True)
             
         #re home the arm
         self.arm_move_group.set_max_velocity_scaling_factor(1.0)
-        self.arm_move_group.set_named_target('test_home')
+        self.arm_move_group.set_named_target('home')
         self.arm_move_group.go(wait=True)
         self.arm_move_group.stop()
         self.arm_move_group.clear_pose_targets()
         
         print("Experienced "+str(self.failures)+" failures")
+        
         
         
 if __name__ == '__main__':

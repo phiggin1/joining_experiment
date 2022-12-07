@@ -9,7 +9,7 @@ rospy.init_node('gen3_finger_pose')
 
 pose_pub = rospy.Publisher('finger_pose', PoseStamped, queue_size=10)
 
-effector = "end_effector_link"
+effector = "tool_frame"
 base = "base_link"
 
 rospy.sleep(1)
@@ -26,7 +26,7 @@ while not rospy.is_shutdown():
     pose.header.stamp = now
     pose.pose.position.x = 0.0
     pose.pose.position.y = 0.0
-    pose.pose.position.z = 0.0
+    pose.pose.position.z = 0.035
     pose.pose.orientation.w = 1.0
 
     pose_pub.publish(pose)

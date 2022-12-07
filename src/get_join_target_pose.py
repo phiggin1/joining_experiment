@@ -26,15 +26,19 @@ class GetTargetPose:
         self.led_width = rospy.get_param("led_width", 15.0/1000.0)
         self.putty_width = rospy.get_param("putty_width", 50.0/1000.0)
 
-        self.min_dist = rospy.get_param("min_dist", 10.0/1000.0)
-        self.max_dist = rospy.get_param("max_dist", 50.0/1000.0)
+        self.min_dist = rospy.get_param("min_dist", 20.0/1000.0)
+        self.max_dist = rospy.get_param("max_dist", 75.0/1000.0)
 
-        self.min_x = rospy.get_param("min_x", -0.3)
-        self.max_x = rospy.get_param("max_x", 0.3)
-        self.min_y = rospy.get_param("min_y", -0.2)
-        self.max_y = rospy.get_param("max_y", 0.2)
-        self.min_z = rospy.get_param("min_z", 0.5)
-        self.max_z = rospy.get_param("max_z", 0.7)
+        self.min_x = rospy.get_param("min_x", 0.0)
+        self.max_x = rospy.get_param("max_x", 90.5)
+        self.min_y = rospy.get_param("min_y", -90.2)
+        self.max_y = rospy.get_param("max_y", 90.2)
+        self.min_z = rospy.get_param("min_z", 0.0)
+        self.max_z = rospy.get_param("max_z", 90.3)
+
+
+        self.min_dist = -9999.0
+        self.max_dist =  9999.0
 
         self.debug = rospy.get_param("debug", True) 
 
@@ -72,11 +76,11 @@ class GetTargetPose:
         a = [anode.point.x - cathode.point.x,
              anode.point.y - cathode.point.y,
              anode.point.z - cathode.point.z,]
-        #forward vector in image space (z is into the image)
-        b = (0,0,1)
+        #forward vector in base_link space 
+        b = (1, 0, 0)
 
-        pa = [anode.point.x, anode.point.y, anode.point.z]
-        pc = [cathode.point.x, cathode.point.y, cathode.point.z,]
+        pa = [  anode.point.x,   anode.point.y,   (anode.point.z+0.5*anode.h.data)]
+        pc = [cathode.point.x, cathode.point.y, (cathode.point.z+0.5*anode.h.data)]
 
         #check if to cathode or anode are too close/far
         d = dist(pa, pc)
@@ -89,10 +93,12 @@ class GetTargetPose:
 
         #yaw (in kinect frame around y axis)
         theta = np.arccos( dot(a,b)/(norm(a)*norm(b)) )
+        '''
         if (a[0] > 0):
             theta = -theta
+            '''
         #generate quaternion from the yaw
-        quat = quaternion_from_euler(math.pi/2.0, theta-(math.pi/2.0), 0.0 )          
+        quat = quaternion_from_euler(math.pi, 0.0, theta )          
 
         #the target position is between the anode and cathode
         target.pose.position.x = (pa[0]+pc[0])/2.0
@@ -107,24 +113,23 @@ class GetTargetPose:
         #check if in workspace
         if target.pose.position.x < self.min_x:
             target.in_workspace.data = False
-            move_direction += "to my right "
+            move_direction += "farther from me"
         elif target.pose.position.x > self.max_x:
+            target.in_workspace.data = False
+            move_direction += "closer to me"
+        if target.pose.position.y < self.min_y:
+            target.in_workspace.data = False
+            move_direction += "to my right "
+        elif target.pose.position.y > self.max_y:
             target.in_workspace.data = False
             move_direction += "to my left "
 
-        if target.pose.position.y < self.min_y:
-            target.in_workspace.data = False
+        if target.pose.position.z < self.min_z:
             move_direction += "up "
-        elif target.pose.position.y > self.max_y:
+            target.in_workspace.data = False
+        elif target.pose.position.z > self.max_z:            
             target.in_workspace.data = False
             move_direction += "down "
-
-        if target.pose.position.z < self.min_z:
-            target.in_worksapce.data = False
-            move_direction += "farther from me"
-        elif target.pose.position.z > self.max_z:            
-            target.in_worksapce.data = False
-            move_direction += "closer to me"
 
         target.move_direction = move_direction
 
@@ -140,14 +145,13 @@ class GetTargetPose:
 
         self.pose_stamped_pub.publish(stamped_pose)
 
-
-        rospy.loginfo(pa)
-        rospy.loginfo(pc)
+        '''
         rospy.loginfo("positon:     x:%.4f\ty:%.4f\tz:%.4f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
         rospy.loginfo("orientation: x:%.4f\ty:%.4f\tz:%.4f\tw:%.4f" % (target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z, target.pose.orientation.w))
         rospy.loginfo("dist:%.4f min_dist:%.4f max_dist:%.4f" %(d,self.min_dist,self.max_dist))
         rospy.loginfo("%r %r" % (target.too_close, target.too_far.data))
         rospy.loginfo(move_direction)
+        '''
 
         #print(target)
 

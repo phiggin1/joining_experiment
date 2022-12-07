@@ -5,6 +5,7 @@ import message_filters
 import numpy as np
 import math
 import cv2
+import tf
 from cv_bridge import CvBridge
 import image_geometry
 from sensor_msgs.msg import Image, CameraInfo
@@ -12,6 +13,7 @@ from sensor_msgs.msg import PointCloud2
 import sensor_msgs.point_cloud2 as pc2
 from joining_experiment.msg import Object
 from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PointStamped
 from tf.transformations import quaternion_from_euler
 from visualization_msgs.msg import Marker
 
@@ -89,12 +91,14 @@ class FindPutty:
         max_b = rospy.get_param("~max_b", 64)
 
         #Min and max distance to consider for anode/cathode positions in mm
-        self.min_depth = rospy.get_param("min_depth", 0)
+        self.min_depth = rospy.get_param("min_depth", 160)
         self.max_depth = rospy.get_param("max_depth", 1500.0)
 
-        
+        self.planning_frame = "base_link"
 
-        rospy.loginfo("%s max r:%i max g:%i max b:%i" % (self.type, max_r, max_g, max_b))
+        self.listener = tf.TransformListener()
+
+        rospy.loginfo("type: %s max r: %i max g: %i max b: %i" % (self.type, max_r, max_g, max_b))
 
         if is_sim:
             rospy.loginfo("virtual robot")
@@ -144,23 +148,41 @@ class FindPutty:
             x,y,z,w,h,d = self.get_centroid(points)
             #rospy.loginfo("%s\tx: %.3f\ty: %.3f\tz: %.3f" % (self.type,x,y,z))
             obj = Object()
-            obj.header = depth_ros_image.header
+            obj.header.frame_id = self.planning_frame
             obj.point.x = x
             obj.point.y = y
             obj.point.z = z
-            obj.w.data = w
-            obj.h.data = h
-            obj.d.data = d
+
+            stamped_point = PointStamped()
+            stamped_point.point = obj.point
+            stamped_point.header = depth_ros_image.header
+            self.listener.waitForTransform(depth_ros_image.header.frame_id, self.planning_frame, rospy.Time(), rospy.Duration(4.0) )
+            stamped_point.header.stamp = rospy.Time()
+            stamped_point= self.listener.transformPoint(self.planning_frame, stamped_point)
+            obj.point = stamped_point.point
+
+
+            '''
+            self.listener.waitForTransform(target.header.frame_id, self.planning_frame, rospy.Time(), rospy.Duration(4.0) )
+            target.header.stamp = rospy.Time()
+            self.target = self.listener.transformPose(self.planning_frame, target) 
+            '''
+
+            obj.w.data = h #w x
+            obj.h.data = d #h y
+            obj.d.data = w #d z
+
             self.obj_pub.publish(obj)
+            
+            #debugging messages for visualization
+            rgb_masked = cv2.bitwise_and(rgb, rgb, mask=image_mask)
+            self.img_pub.publish(self.bridge.cv2_to_imgmsg(rgb_masked, encoding="passthrough"))
+            self.pc_pub.publish(pc2.create_cloud_xyz32(depth_ros_image.header, points))
+            self.marker_pub.publish(get_marker(x,y,z,w,h,d,depth_ros_image.header.frame_id,self.type))
 
         else:
             rospy.loginfo("Empty "+self.type+" pointcloud")
         
-        #debugging messages for visualization
-        rgb_masked = cv2.bitwise_and(rgb, rgb, mask=image_mask)
-        self.img_pub.publish(self.bridge.cv2_to_imgmsg(rgb_masked, encoding="passthrough"))
-        self.pc_pub.publish(pc2.create_cloud_xyz32(depth_ros_image.header, points))
-        self.marker_pub.publish(get_marker(x,y,z,w,h,d,depth_ros_image.header.frame_id,self.type))
 
         
         
