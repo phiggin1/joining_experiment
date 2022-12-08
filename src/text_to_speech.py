@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import festival
 import soundfile as sf
 import json
 import rospy
@@ -11,10 +10,14 @@ class TextToSpeech:
         rospy.init_node('text_to_speech')
         self.is_sim = rospy.get_param("~rivr", False)
         self.last_time_spoke = None
+        self.speech_delay = 5.0
         self.rivr_robot_speech = rospy.Publisher('/robotspeech', String, queue_size=10)
-        self.finger_sub = rospy.Subscriber('/text_to_speech', String, self.talk)
+        self.text_sub = rospy.Subscriber('/text_to_speech', String, self.talk)
+        rospy.spin()
 
     def talk(self, str_msg):
+        import festival
+
         text = str_msg.data
         now = now = rospy.Time.now().to_sec()
         if (self.last_time_spoke is None or now > self.last_time_spoke+self.speech_delay):

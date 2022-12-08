@@ -69,7 +69,7 @@ class GoToTarget:
         self.planning_frame = self.arm_move_group.get_planning_frame()
 
         self.rivr_robot_speech = rospy.Publisher('/text_to_speech', String, queue_size=10)
-        self.grab = rospy.Publisher('buttons', String, queue_size=10)
+        self.grab = rospy.Publisher('/buttons', String, queue_size=10)
 
         self.target_topic = "/target/target"
         self.target_sub = rospy.Subscriber(self.target_topic , JoinPose, self.get_target)
@@ -168,7 +168,8 @@ class GoToTarget:
     def get_init_target(self):
         count = 0
         rate = rospy.Rate(1)
-        while not self.valid_target and count < self.retry_times and not rospy.is_shutdown():
+        #while not self.valid_target and count < self.retry_times and not rospy.is_shutdown():
+        while not self.valid_target and not rospy.is_shutdown():
             count += 1
             rate.sleep()
         
@@ -207,7 +208,7 @@ class GoToTarget:
         self.move_fingers(self.hand_partial_closed)
 
 
-        self.talk("Can you please put the l e d between my fingers? The leads should be facing you with the shorter lead should be on your right.")
+        self.talk("Can you please put the l e d between my fingers? The leads should be facing you with the shorter lead on your right.")
         
 
         #give acknowledgement?
