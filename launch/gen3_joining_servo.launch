@@ -66,4 +66,5 @@
   <node name="robot_text_to_speech" pkg="joining_experiment" type="text_to_speech.py" output="screen">  
     <param name="rivr"  value="$(arg rivr)" />
   </node>
+
 </launch>

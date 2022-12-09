@@ -2,6 +2,7 @@
 
 import rospy
 import message_filters
+import tf
 import numpy as np
 import math
 from joining_experiment.msg import Object
@@ -37,6 +38,16 @@ class GetTargetPose:
         self.max_z = rospy.get_param("max_z", 90.3)
 
 
+        self.base_frame = 'base_link'
+
+        self.listener = tf.TransformListener()
+
+        self.anode = None
+        self.cathode = None
+        self.last_valid_anode = rospy.Time.now()
+        self.last_valid_cathode = rospy.Time.now()
+        self.wait = 1.0
+
         self.min_dist = -9999.0
         self.max_dist =  9999.0
 
@@ -45,24 +56,32 @@ class GetTargetPose:
         self.target_pub = rospy.Publisher('/target/target', JoinPose, queue_size=10)
         self.pose_stamped_pub = rospy.Publisher('/target/pose_stamped', PoseStamped, queue_size=10)
 
+        self.cathode_sub = rospy.Subscriber('/target/object_cathode', Object, self.get_cathode)
+        self.anode_sub = rospy.Subscriber('/target/object_anode', Object, self.get_anode)
+        '''
         self.cathode_sub = message_filters.Subscriber('/target/object_cathode', Object)
         self.anode_sub = message_filters.Subscriber('/target/object_anode', Object)
         self.ts = message_filters.ApproximateTimeSynchronizer([self.cathode_sub, self.anode_sub], 10, slop=2.0)
         self.ts.registerCallback(self.callback)
+        '''
+        rospy.sleep(5.0)
+        rate =rospy.Rate(10)
+        while not rospy.is_shutdown():
+            #if self.anode is not None and self.cathode is not None:
+            self.callback(self.cathode, self.anode)
+            rate.sleep()
+            
 
-        rospy.spin()
+    def get_cathode(self, cathode):
+        self.cathode = cathode
+        self.last_valid_cathode = rospy.Time.now()
+
+    def get_anode(self, anode):
+        self.anode = anode
+        self.last_valid_anode = rospy.Time.now()
 
     def callback(self, cathode, anode):       
         target = JoinPose()
-        target.header = cathode.header
-
-        target.pose.position.x = 0.0
-        target.pose.position.y = 0.0
-        target.pose.position.z = 0.0
-        target.pose.orientation.x = 0.0
-        target.pose.orientation.y = 0.0
-        target.pose.orientation.z = 0.0
-        target.pose.orientation.w = 1.0
         
         #error checking
         target.too_far.data = False     #cathode and anode close enough
@@ -72,10 +91,37 @@ class GetTargetPose:
         target.in_workspace.data = True #is cathode&anode in workspace
         target.move_direction = ""      #   if not move right/left/up/down/closer/farther
 
+        see = True
+        now = rospy.Time.now()
+        if (self.last_valid_anode + rospy.Duration(self.wait)) > now or self.anode is None:
+            target.see_anode.data = False
+            see = False
+            rospy.loginfo("see_anode = False")
+        if (self.last_valid_cathode + rospy.Duration(self.wait)) > now or self.cathode is None:
+            target.see_cathode.data = False
+            see = False
+            rospy.loginfo("see_cathode = False")
+
+        if not see:
+            self.target_pub.publish(target)
+            return
+
+
+        target.header = cathode.header
+
+        target.pose.position.x = 0.0
+        target.pose.position.y = 0.0
+        target.pose.position.z = 0.0
+        target.pose.orientation.x = 0.0
+        target.pose.orientation.y = 0.0
+        target.pose.orientation.z = 0.0
+        target.pose.orientation.w = 1.0
+
         #vectort from anode to cathode
         a = [anode.point.x - cathode.point.x,
              anode.point.y - cathode.point.y,
-             anode.point.z - cathode.point.z,]
+             anode.point.z - cathode.point.z]
+
         #forward vector in base_link space 
         b = (1, 0, 0)
 
@@ -85,7 +131,6 @@ class GetTargetPose:
         #check if to cathode or anode are too close/far
         d = dist(pa, pc)
 
-
         if d <= self.min_dist:
             target.too_close = True
         elif d > self.max_dist:
@@ -93,10 +138,7 @@ class GetTargetPose:
 
         #yaw (in kinect frame around y axis)
         theta = np.arccos( dot(a,b)/(norm(a)*norm(b)) )
-        '''
-        if (a[0] > 0):
-            theta = -theta
-            '''
+
         #generate quaternion from the yaw
         quat = quaternion_from_euler(math.pi, 0.0, theta )          
 
@@ -145,15 +187,16 @@ class GetTargetPose:
 
         self.pose_stamped_pub.publish(stamped_pose)
 
+        
+        
+        #rospy.loginfo("positon:     x:%.4f\ty:%.4f\tz:%.4f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
+        #rospy.loginfo("orientation: x:%.4f\ty:%.4f\tz:%.4f\tw:%.4f" % (target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z, target.pose.orientation.w))
         '''
-        rospy.loginfo("positon:     x:%.4f\ty:%.4f\tz:%.4f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
-        rospy.loginfo("orientation: x:%.4f\ty:%.4f\tz:%.4f\tw:%.4f" % (target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z, target.pose.orientation.w))
         rospy.loginfo("dist:%.4f min_dist:%.4f max_dist:%.4f" %(d,self.min_dist,self.max_dist))
         rospy.loginfo("%r %r" % (target.too_close, target.too_far.data))
         rospy.loginfo(move_direction)
         '''
-
-        #print(target)
+        
 
         self.target_pub.publish(target)
 

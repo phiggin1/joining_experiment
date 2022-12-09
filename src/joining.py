@@ -111,12 +111,11 @@ class GoToTarget:
         return False
 
     def talk(self, text):
-        print("Saying rivr: " + text)
         self.rivr_robot_speech.publish(text)
-        repeat = input("Repeat (y/n): ")
+        repeat = input("Saying: " + text+"\tRepeat (y/n): ")
         while (repeat == 'y'):
             self.rivr_robot_speech.publish(text)
-            repeat = input("Repeat (y/n): ")
+            repeat = input("Saying: " + text+"\tRepeat (y/n): ")
 
     def get_target(self, target):
         too_far = target.too_far.data
@@ -129,35 +128,41 @@ class GoToTarget:
         directions = target.move_direction.split(' ')
 
         now = rospy.Time.now().to_sec()
-        if not see_anode and not see_cathode and self.presented and now > self.last_time_spoke+self.speech_delay: 
+        if not see_anode: 
             self.valid_target = False
-            self.talk("Can you please move the red and green putty to where I can see tem?")
-            self.last_time_spoke = now
-        elif not see_anode and self.presented and now > self.last_time_spoke+self.speech_delay: 
+            if self.presented and not see_cathode and self.presented and now > self.last_time_spoke+self.speech_delay:
+                self.talk("Can you please move the red and green putty to where I can see tem?")
+                self.last_time_spoke = now
+        elif not see_anode: 
             self.valid_target = False
-            self.talk("Can you please move the red putty where I can see it?")
-            self.last_time_spoke = now
-        elif not see_cathode and self.presented and now > self.last_time_spoke+self.speech_delay: 
+            if self.presented and now > self.last_time_spoke+self.speech_delay:
+                self.talk("Can you please move the red putty where I can see it?")
+                self.last_time_spoke = now
+        elif not see_cathode: 
             self.valid_target = False
-            self.talk("Can you please move the green putty where I can see it?")
-            self.last_time_spoke = now
-        elif too_far and self.presented and now > self.last_time_spoke+self.speech_delay: 
+            if self.presented and now > self.last_time_spoke+self.speech_delay:
+                self.talk("Can you please move the green putty where I can see it?")
+                self.last_time_spoke = now
+        elif too_far: 
             self.valid_target = False
-            self.talk("Can you please move the putty closer together?")
-            self.last_time_spoke = now
-        elif too_close and self.presented and now > self.last_time_spoke+self.speech_delay: 
+            if self.presented and now > self.last_time_spoke+self.speech_delay:
+                self.talk("Can you please move the putty closer together?")
+                self.last_time_spoke = now
+        elif too_close : 
             self.valid_target = False
-            self.talk("Can you please move the putty a little further apart?")
-            self.last_time_spoke = now
-        elif not in_workspace and self.presented and now > self.last_time_spoke+self.speech_delay: 
+            if self.presented and now > self.last_time_spoke+self.speech_delay:
+                self.talk("Can you please move the putty a little further apart?")
+                self.last_time_spoke = now
+        elif not in_workspace: 
             self.valid_target = False
-            text  = "Can you please move the putty "
-            for i in range(len(directions)):
-                text += directions[i]
-                if i < len(directions)-1:
-                    text += " and "
-            self.talk(text)
-            self.last_time_spoke = now
+            if self.presented and now > self.last_time_spoke+self.speech_delay:
+                text  = "Can you please move the putty "
+                for i in range(len(directions)):
+                    text += directions[i]
+                    if i < len(directions)-1:
+                        text += " and "
+                self.talk(text)
+                self.last_time_spoke = now
         else:
             self.listener.waitForTransform(target.header.frame_id, self.planning_frame, rospy.Time(), rospy.Duration(4.0) )
             target.header.stamp = rospy.Time()
@@ -168,7 +173,6 @@ class GoToTarget:
     def get_init_target(self):
         count = 0
         rate = rospy.Rate(1)
-        #while not self.valid_target and count < self.retry_times and not rospy.is_shutdown():
         while not self.valid_target and not rospy.is_shutdown():
             count += 1
             rate.sleep()

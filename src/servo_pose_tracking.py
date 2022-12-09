@@ -129,6 +129,8 @@ class Tracker:
         self.near = True
         self.see_cathode = True
         self.see_anode = True 
+        self.wait_time = 1.0
+        self.last_valid_target = rospy.Time.now()
 
         self.finger_sub = rospy.Subscriber('finger_pose', PoseStamped, self.get_finger_pose)
         #self.target_sub = rospy.Subscriber('/target/target_pose', PoseStamped, self.get_target_pose)   #testing subscriber
@@ -163,14 +165,16 @@ class Tracker:
         self.listener.waitForTransform(pose.header.frame_id, self.base_frame, t, rospy.Duration(4.0) )
         self.finger_pose = self.listener.transformPose(self.base_frame, pose)
 
-        '''(r, p, y) = euler_from_quaternion(quat_from_orientation(self.finger_pose.pose.orientation))
+        '''
+        (r, p, y) = euler_from_quaternion(quat_from_orientation(self.finger_pose.pose.orientation))
                 
         self.finger_x = self.finger_pose.pose.position.x
         self.finger_y = self.finger_pose.pose.position.y
         self.finger_z = self.finger_pose.pose.position.z
         self.finger_roll = r
         self.finger_pitch = p
-        self.finger_yaw = y'''
+        self.finger_yaw = y
+        '''
         
 
     def get_target_pose(self, tar_pose):
@@ -186,15 +190,18 @@ class Tracker:
             pose.header.stamp = t
             self.listener.waitForTransform(pose.header.frame_id, self.base_frame, t, rospy.Duration(4.0) )
             self.target_pose = self.listener.transformPose(self.base_frame, pose)
+            self.last_valid_target = rospy.Time.now()
 
-        '''(r, p, y) = euler_from_quaternion(quat_from_orientation(self.target_pose.pose.orientation))
+        '''
+        (r, p, y) = euler_from_quaternion(quat_from_orientation(self.target_pose.pose.orientation))
                 
         self.target_x = self.target_pose.pose.position.x
         self.target_y = self.target_pose.pose.position.y
         self.target_z = self.target_pose.pose.position.z
         self.target_roll = r
         self.target_pitch = p
-        self.target_yaw = y'''
+        self.target_yaw = y
+        '''
         
     def satisfy_tolerance(self, angular_error, positional_error):
         x_err = positional_error[0]
@@ -229,97 +236,101 @@ class Tracker:
 
         rate = rospy.Rate(self.pub_rate) # 10hz
         while (not self.satisfy_tolerance(angular_error, positional_error) and self.total_time < self.time_out):  
-            if (self.target_pose is not None and self.finger_pose is not None):
-                time = rospy.Time.now().to_sec()
-                dt = 1.0/self.pub_rate
-          
-                positional_error = get_position_error(self.finger_pose, self.target_pose)
+            if (self.target_pose is None or self.finger_pose is None or (rospy.Time.now()  > (self.last_valid_target + rospy.Duration(self.wait_time)))):
+                #print('pass')
+                continue
 
-                q_t = quat_from_orientation(self.target_pose.pose.orientation)
-                q_f = quat_from_orientation(self.finger_pose.pose.orientation)
-                q_r = quaternion_multiply( q_t , quaternion_inverse(q_f))                
-                angular_error, ax, ay, az = angle_axis(q_r)
+            time = rospy.Time.now().to_sec()
+            dt = 1.0/self.pub_rate
+        
+            positional_error = get_position_error(self.finger_pose, self.target_pose)
 
-                #get twist linear values from PID controllers
-                t_l_x = x_pid(positional_error[0], dt)
-                t_l_y = y_pid(positional_error[1], dt)
-                t_l_z = z_pid(positional_error[2], dt)
+            q_t = quat_from_orientation(self.target_pose.pose.orientation)
+            q_f = quat_from_orientation(self.finger_pose.pose.orientation)
+            q_r = quaternion_multiply( q_t , quaternion_inverse(q_f))                
+            angular_error, ax, ay, az = angle_axis(q_r)
 
-                #get twist angular values
-                #   get euler angles from axis angles of quaternion
-                ang_vel_magnitude = theta_pid(angular_error, dt)
-                t_a_x = ang_vel_magnitude * ax
-                t_a_y = ang_vel_magnitude * ay
-                t_a_z = ang_vel_magnitude * az
-                
-                '''entry = {} 
-                entry['timestamp'] = time
+            #get twist linear values from PID controllers
+            t_l_x = x_pid(positional_error[0], dt)
+            t_l_y = y_pid(positional_error[1], dt)
+            t_l_z = z_pid(positional_error[2], dt)
 
-                entry['error_theta'] = angular_error
-                entry['error_x'] = positional_error[0]
-                entry['error_y'] = positional_error[1]
-                entry['error_z'] = positional_error[2]
+            #get twist angular values
+            #   get euler angles from axis angles of quaternion
+            ang_vel_magnitude = theta_pid(angular_error, dt)
+            t_a_x = ang_vel_magnitude * ax
+            t_a_y = ang_vel_magnitude * ay
+            t_a_z = ang_vel_magnitude * az
+            
+            '''
+            entry = {} 
+            entry['timestamp'] = time
 
-                entry['t_l_x'] = t_l_x
-                entry['t_l_y'] = t_l_y
-                entry['t_l_z'] = t_l_z
+            entry['error_theta'] = angular_error
+            entry['error_x'] = positional_error[0]
+            entry['error_y'] = positional_error[1]
+            entry['error_z'] = positional_error[2]
 
-                entry['t_a_x'] = t_a_x
-                entry['t_a_y'] = t_a_y
-                entry['t_a_z'] = t_a_z
+            entry['t_l_x'] = t_l_x
+            entry['t_l_y'] = t_l_y
+            entry['t_l_z'] = t_l_z
 
-                entry['target_x']  = self.target_x
-                entry['target_y']  = self.target_y 
-                entry['target_z']  = self.target_z 
+            entry['t_a_x'] = t_a_x
+            entry['t_a_y'] = t_a_y
+            entry['t_a_z'] = t_a_z
 
-                entry['target_roll']  = self.target_roll
-                entry['target_pitch'] = self.target_pitch
-                entry['target_yaw']  = self.target_yaw 
+            entry['target_x']  = self.target_x
+            entry['target_y']  = self.target_y 
+            entry['target_z']  = self.target_z 
 
-                entry['finger_x'] = self.finger_x
-                entry['finger_y'] = self.finger_y 
-                entry['finger_z'] = self.finger_z 
+            entry['target_roll']  = self.target_roll
+            entry['target_pitch'] = self.target_pitch
+            entry['target_yaw']  = self.target_yaw 
 
-                entry['finger_roll'] = self.finger_roll 
-                entry['finger_pitch'] = self.finger_pitch 
-                entry['finger_yaw'] = self.finger_yaw 
+            entry['finger_x'] = self.finger_x
+            entry['finger_y'] = self.finger_y 
+            entry['finger_z'] = self.finger_z 
 
-                self.data.append(entry)'''
-                
-                pose_vel = TwistStamped()
-                pose_vel.header = self.target_pose.header
-                pose_vel.header.frame_id = self.base_frame
-                pose_vel.header.stamp = rospy.Time.now()
+            entry['finger_roll'] = self.finger_roll 
+            entry['finger_pitch'] = self.finger_pitch 
+            entry['finger_yaw'] = self.finger_yaw 
 
-                pose_vel.twist.linear.x = t_l_x 
-                pose_vel.twist.linear.y = t_l_y 
-                pose_vel.twist.linear.z = t_l_z 
+            self.data.append(entry)'''
+            
+            pose_vel = TwistStamped()
+            pose_vel.header = self.target_pose.header
+            pose_vel.header.frame_id = self.base_frame
+            pose_vel.header.stamp = rospy.Time.now()
 
-                pose_vel.twist.angular.x = t_a_x 
-                pose_vel.twist.angular.y = t_a_y 
-                pose_vel.twist.angular.z = t_a_z 
+            pose_vel.twist.linear.x = t_l_x 
+            pose_vel.twist.linear.y = t_l_y 
+            pose_vel.twist.linear.z = t_l_z 
 
-                
-                rospy.loginfo('Elapsed time: %f' % self.total_time)
-                rospy.loginfo("Target  pose: " + pose2sting(self.target_pose.pose))
-                rospy.loginfo("Current pose: " + pose2sting(self.finger_pose.pose))
-                rospy.loginfo("Postional error    x: %.3f" % positional_error[0])
-                rospy.loginfo("Postional error    y: %.3f" % positional_error[1])
-                rospy.loginfo("Postional error    z: %.3f" % positional_error[2])
-                rospy.loginfo("Positional tolerance: %f" % (self.positional_tolerance))
-                rospy.loginfo("Angular error       : %f" % (angular_error))
-                rospy.loginfo("angular tolerance   : %f" % (self.angular_tolerance))
-                
-                rospy.loginfo("Output: %.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f"%(pose_vel.twist.linear.x,pose_vel.twist.linear.y,pose_vel.twist.linear.z,pose_vel.twist.angular.x,pose_vel.twist.angular.y,pose_vel.twist.angular.z))
-                
-                
-                self.cart_vel_pub.publish(pose_vel)
-                
-                self.total_time += dt
-                if self.total_time > self.time_out:
-                    self.timed_out = True
+            pose_vel.twist.angular.x = t_a_x 
+            pose_vel.twist.angular.y = t_a_y 
+            pose_vel.twist.angular.z = t_a_z 
 
-                rate.sleep()
+            
+            rospy.loginfo('Elapsed time: %f' % self.total_time)
+            rospy.loginfo("Target  pose: " + pose2sting(self.target_pose.pose))
+            rospy.loginfo("Current pose: " + pose2sting(self.finger_pose.pose))
+            rospy.loginfo("Postional error    x: %.3f" % positional_error[0])
+            rospy.loginfo("Postional error    y: %.3f" % positional_error[1])
+            rospy.loginfo("Postional error    z: %.3f" % positional_error[2])
+            rospy.loginfo("Positional tolerance: %f" % (self.positional_tolerance))
+            rospy.loginfo("Angular error       : %f" % (angular_error))
+            rospy.loginfo("angular tolerance   : %f" % (self.angular_tolerance))
+            
+            rospy.loginfo("Output: %.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f"%(pose_vel.twist.linear.x,pose_vel.twist.linear.y,pose_vel.twist.linear.z,pose_vel.twist.angular.x,pose_vel.twist.angular.y,pose_vel.twist.angular.z))
+            
+            
+            self.cart_vel_pub.publish(pose_vel)
+            
+            self.total_time += dt
+            if self.total_time > self.time_out:
+                self.timed_out = True
+
+            rate.sleep()
 
         '''rospy.loginfo('pre writing')
         data_csv = pd.DataFrame(self.data)

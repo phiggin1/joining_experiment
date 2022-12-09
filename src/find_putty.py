@@ -125,13 +125,13 @@ class FindPutty:
         self.marker_pub = rospy.Publisher('/target/marker_'+self.type, Marker, queue_size=10)
         self.obj_pub = rospy.Publisher('/target/object_'+self.type, Object, queue_size=10)
 
-        self.ts = message_filters.ApproximateTimeSynchronizer([self.rgb_image_sub, self.depth_image_sub], 10, slop=2.0)
+        self.ts = message_filters.ApproximateTimeSynchronizer([self.rgb_image_sub, self.depth_image_sub], 10, slop=1.0)
         self.ts.registerCallback(self.callback)
 
         rospy.spin()
 
     def callback(self, rgb_ros_image, depth_ros_image):
-        #rospy.loginfo(("type:%s encoding:%s" % (self.type, rgb_ros_image.encoding))
+        rospy.loginfo("type:%s rgb encoding:%s depth encoding:%s" % (self.type, rgb_ros_image.encoding, depth_ros_image.encoding))
 
         rgb = np.asarray(self.bridge.imgmsg_to_cv2(rgb_ros_image, desired_encoding="passthrough"))
         depth = np.asarray(self.bridge.imgmsg_to_cv2(depth_ros_image, desired_encoding="passthrough"))
@@ -161,32 +161,30 @@ class FindPutty:
             stamped_point= self.listener.transformPoint(self.planning_frame, stamped_point)
             obj.point = stamped_point.point
 
-
-            '''
-            self.listener.waitForTransform(target.header.frame_id, self.planning_frame, rospy.Time(), rospy.Duration(4.0) )
-            target.header.stamp = rospy.Time()
-            self.target = self.listener.transformPose(self.planning_frame, target) 
-            '''
-
             obj.w.data = h #w x
             obj.h.data = d #h y
             obj.d.data = w #d z
 
+            x = obj.point.x
+            y = obj.point.y
+            z = obj.point.z
+            w = obj.w.data
+            h = obj.h.data
+            d = obj.d.data
+
             self.obj_pub.publish(obj)
             
+            #rospy.loginfo(obj)
+
             #debugging messages for visualization
             rgb_masked = cv2.bitwise_and(rgb, rgb, mask=image_mask)
             self.img_pub.publish(self.bridge.cv2_to_imgmsg(rgb_masked, encoding="passthrough"))
-            self.pc_pub.publish(pc2.create_cloud_xyz32(depth_ros_image.header, points))
-            self.marker_pub.publish(get_marker(x,y,z,w,h,d,depth_ros_image.header.frame_id,self.type))
+            #self.pc_pub.publish(pc2.create_cloud_xyz32(depth_ros_image.header, points))
+            self.marker_pub.publish(get_marker(x,y,z,w,h,d,self.planning_frame,self.type))
 
         else:
             rospy.loginfo("Empty "+self.type+" pointcloud")
         
-
-        
-        
-
     #Iterate through the masked depth image
     #   return a list of points in 3d space
     def get_pointcloud(self, depth_masked):
