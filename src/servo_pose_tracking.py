@@ -100,7 +100,7 @@ class Tracker:
         #number of zero twist halt msgs to send to get servo_server to halt
         self.num_halt_msgs = 20
 
-        self.time_out = 30.0
+        self.time_out = 10.0
 
         self.is_sim = rospy.get_param("~rivr", True)
         if self.is_sim:

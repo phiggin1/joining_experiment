@@ -131,7 +131,7 @@ class FindPutty:
         rospy.spin()
 
     def callback(self, rgb_ros_image, depth_ros_image):
-        rospy.loginfo("type:%s rgb encoding:%s depth encoding:%s" % (self.type, rgb_ros_image.encoding, depth_ros_image.encoding))
+        #rospy.loginfo("type:%s rgb encoding:%s depth encoding:%s" % (self.type, rgb_ros_image.encoding, depth_ros_image.encoding))
 
         rgb = np.asarray(self.bridge.imgmsg_to_cv2(rgb_ros_image, desired_encoding="passthrough"))
         depth = np.asarray(self.bridge.imgmsg_to_cv2(depth_ros_image, desired_encoding="passthrough"))
