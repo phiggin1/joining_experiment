@@ -93,14 +93,16 @@ class GetTargetPose:
 
         see = True
         now = rospy.Time.now()
-        if (self.last_valid_anode + rospy.Duration(self.wait)) > now or self.anode is None:
+        if now > (self.last_valid_anode + rospy.Duration(self.wait)) or self.anode is None:
             target.see_anode.data = False
+            target.in_workspace.data = False 
             see = False
-            rospy.loginfo("see_anode = False")
-        if (self.last_valid_cathode + rospy.Duration(self.wait)) > now or self.cathode is None:
+            #rospy.loginfo("see_anode = False")
+        if now > (self.last_valid_cathode + rospy.Duration(self.wait)) or self.cathode is None:
             target.see_cathode.data = False
+            target.in_workspace.data = False 
             see = False
-            rospy.loginfo("see_cathode = False")
+            #rospy.loginfo("see_cathode = False")
 
         if not see:
             self.target_pub.publish(target)

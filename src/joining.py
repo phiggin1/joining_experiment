@@ -131,7 +131,7 @@ class GoToTarget:
         if not see_anode: 
             self.valid_target = False
             if self.presented and not see_cathode and self.presented and now > self.last_time_spoke+self.speech_delay:
-                self.talk("Can you please move the red and green putty to where I can see tem?")
+                self.talk("Can you please move the red and green putty to where I can see them?")
                 self.last_time_spoke = now
         elif not see_anode: 
             self.valid_target = False
@@ -260,6 +260,8 @@ class GoToTarget:
             self.presented = False
             rospy.loginfo('post servo')
             
+            rospy.sleep(0.10)
+
             #check if should open hand
             self.talk("did the L E D light up")
             i = input("Open hand (y/n) ")
