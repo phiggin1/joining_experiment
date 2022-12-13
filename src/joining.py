@@ -40,6 +40,14 @@ class GoToTarget:
         self.standoff_distance = 0.15       #m
         self.goal_tolerance = 0.0025        #m
 
+
+        self.error_count = 10
+        self.count_too_far = 0
+        self.count_too_close = 0
+        self.count_see_anode = 0
+        self.count_see_cathode = 0
+        self.count_in_workspace = 0
+
         self.valid_target = False
         self.target = None
         self.last_time_spoke = rospy.Time.now().to_sec()
@@ -125,45 +133,73 @@ class GoToTarget:
         see_cathode = target.see_cathode.data
 
         in_workspace = target.in_workspace.data
-        directions = target.move_direction.split(' ')
+        directions = target.move_direction
+
+        self.error_count 
 
         now = rospy.Time.now().to_sec()
-        if not see_anode: 
+        if not see_anode and not see_cathode: 
             self.valid_target = False
-            if self.presented and not see_cathode and self.presented and now > self.last_time_spoke+self.speech_delay:
-                self.talk("Can you please move the red and green putty to where I can see them?")
-                self.last_time_spoke = now
+            self.count_see_anode += 1
+            self.count_see_cathode += 1
+            if self.presented:
+                if now > self.last_time_spoke+self.speech_delay and self.count_see_anode >= self.error_count and self.count_see_cathode >= self.error_count:
+                    self.talk("Can you please move the red and green putty to where I can see them?")
+                    self.last_time_spoke = now
+                    self.count_see_anode = 0
+                    self.count_see_cathode = 0
         elif not see_anode: 
             self.valid_target = False
-            if self.presented and now > self.last_time_spoke+self.speech_delay:
-                self.talk("Can you please move the red putty where I can see it?")
-                self.last_time_spoke = now
+            self.count_see_anode += 1
+            if self.presented:
+                if now > self.last_time_spoke+self.speech_delay and self.count_see_anode >= self.error_count:
+                    self.talk("Can you please move the red putty where I can see it?")
+                    self.last_time_spoke = now
+                    self.count_see_anode = 0
         elif not see_cathode: 
             self.valid_target = False
-            if self.presented and now > self.last_time_spoke+self.speech_delay:
-                self.talk("Can you please move the green putty where I can see it?")
-                self.last_time_spoke = now
+            self.count_see_cathode += 1
+            if self.presented:
+                if now > self.last_time_spoke+self.speech_delay and self.count_see_cathode >= self.error_count:
+                    self.talk("Can you please move the green putty where I can see it?")
+                    self.last_time_spoke = now
+                    self.count_see_cathode = 0
         elif too_far: 
             self.valid_target = False
-            if self.presented and now > self.last_time_spoke+self.speech_delay:
-                self.talk("Can you please move the putty closer together?")
-                self.last_time_spoke = now
+            self.count_too_far += 1
+            if self.presented:
+                if now > self.last_time_spoke+self.speech_delay and self.count_too_far >= self.error_count:
+                    self.talk("Can you please move the putty closer together?")
+                    self.last_time_spoke = now
+                    self.count_too_far = 0
         elif too_close : 
             self.valid_target = False
-            if self.presented and now > self.last_time_spoke+self.speech_delay:
-                self.talk("Can you please move the putty a little further apart?")
-                self.last_time_spoke = now
+            self.count_too_close += 1
+            if self.presented:
+                if now > self.last_time_spoke+self.speech_delay and self.count_too_close >= self.error_count:
+                    self.talk("Can you please move the putty a little further apart?")
+                    self.last_time_spoke = now
+                    self.count_too_close = 0
         elif not in_workspace: 
+            self.count_in_workspace += 1
             self.valid_target = False
-            if self.presented and now > self.last_time_spoke+self.speech_delay:
-                text  = "Can you please move the putty "
-                for i in range(len(directions)):
-                    text += directions[i]
-                    if i < len(directions)-1:
-                        text += " and "
-                self.talk(text)
-                self.last_time_spoke = now
+            if self.presented:
+                if now > self.last_time_spoke+self.speech_delay and self.count_in_workspace >= self.error_count:
+                    text  = "Can you please move the putty "
+                    print(directions)
+                    for i in range(len(directions)):
+                        text += directions[i]
+                        if i < len(directions)-1:
+                            text += " and "
+                    self.talk(text)
+                    self.last_time_spoke = now
+                    self.count_in_workspace = 0
         else:
+            self.count_too_far = 0
+            self.count_too_close = 0
+            self.count_see_anode = 0
+            self.count_see_cathode = 0
+            self.count_in_workspace = 0
             self.listener.waitForTransform(target.header.frame_id, self.planning_frame, rospy.Time(), rospy.Duration(4.0) )
             target.header.stamp = rospy.Time()
             self.target = self.listener.transformPose(self.planning_frame, target)  
@@ -207,14 +243,11 @@ class GoToTarget:
         self.arm_move_group.set_max_velocity_scaling_factor(1.0)
         self.arm_move_group.go(self.hand_over_pose, wait=True)
 
-        
         print('open hand')
         self.move_fingers(self.hand_partial_closed)
 
-
-        self.talk("Can you please put the l e d between my fingers? The leads should be facing you with the shorter lead on your right.")
+        self.talk("Can you please put the l e d between my fingers? The wires should be facing you with the shorter wire on your right.")
         
-
         #give acknowledgement?
         self.grab.publish("grabbed")
         self.move_fingers(self.hand_closed)
@@ -259,7 +292,7 @@ class GoToTarget:
             print(self.servo())
             self.presented = False
             rospy.loginfo('post servo')
-            
+
             rospy.sleep(0.10)
 
             #check if should open hand

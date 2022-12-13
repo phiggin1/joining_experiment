@@ -5,4 +5,4 @@ std_msgs/Bool too_close
 std_msgs/Bool see_anode
 std_msgs/Bool see_cathode
 std_msgs/Bool in_workspace
-string move_direction
+string[] move_direction
