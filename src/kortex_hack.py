@@ -4,6 +4,9 @@ import rospy
 from kortex_driver.msg import TwistCommand, Twist
 from geometry_msgs.msg import TwistStamped, PoseStamped
 
+def clamp(x, minimum, maximum):
+    return max(minimum, min(x, maximum))
+
 class KortexHack:
     def __init__(self):
         rospy.init_node('kortex_hacked_fix', anonymous=True)
@@ -11,7 +14,10 @@ class KortexHack:
         self.servo_sub = rospy.Subscriber('/my_gen3/servo_server/delta_twist_cmds', TwistStamped, self.delta_twist_cmds_cb)
         self.cart_vel_pub = rospy.Publisher('/my_gen3/in/cartesian_velocity', TwistCommand, queue_size=10)
         self.finger_sub = rospy.Subscriber('finger_pose', PoseStamped, self.get_finger_pose)
-
+        self.min_linear_vel = -0.01
+        self.max_linear_vel =  0.01
+        self.min_angular_vel = -0.1
+        self.max_angular_vel =  0.1
         rospy.spin()
 
     def get_finger_pose(self, pose):
@@ -26,12 +32,12 @@ class KortexHack:
         twist.duration = 0
 
         if self.safe:
-            twist.twist.linear_x = delta_twist.twist.linear.x
-            twist.twist.linear_y = delta_twist.twist.linear.y
-            twist.twist.linear_z = delta_twist.twist.linear.z
-            twist.twist.angular_x = delta_twist.twist.angular.x
-            twist.twist.angular_y = delta_twist.twist.angular.y
-            twist.twist.angular_z = delta_twist.twist.angular.z
+            twist.twist.linear_x = clamp(delta_twist.twist.linear.x, self.min_linear_vel, self.max_linear_vel)
+            twist.twist.linear_y = clamp(delta_twist.twist.linear.y, self.min_linear_vel, self.max_linear_vel)
+            twist.twist.linear_z = clamp(delta_twist.twist.linear.z, self.min_linear_vel, self.max_linear_vel)
+            twist.twist.angular_x = clamp(delta_twist.twist.angular.x, self.min_angular_vel, self.max_angular_vel)
+            twist.twist.angular_y = clamp(delta_twist.twist.angular.y, self.min_angular_vel, self.max_angular_vel)
+            twist.twist.angular_z = clamp(delta_twist.twist.angular.z, self.min_angular_vel, self.max_angular_vel)
         else:
             twist.twist.linear_x = 0.0
             twist.twist.linear_y = 0.0
