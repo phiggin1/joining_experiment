@@ -1,28 +1,64 @@
 #!/usr/bin/env python3
 
 import rospy
-from kortex_driver.msg import Base_JointSpeeds, JointSpeed
-from trajectory_msgs.msg import JointTrajectory
+import tf
+from kortex_driver.msg import TwistCommand, Twist
+from geometry_msgs.msg import TwistStamped, PoseStamped
+
+def clamp(x, minimum, maximum):
+    return max(minimum, min(x, maximum))
 
 class KortexHack:
     def __init__(self):
         rospy.init_node('kortex_hacked_fix', anonymous=True)
-        self.servo_sub = rospy.Subscriber('/my_gen3/gen3_joint_trajectory_controller/command', JointTrajectory, self.servo_cb)
-        self.joint_vel_pub = rospy.Publisher('/my_gen3/in/joint_velocity', Base_JointSpeeds, queue_size=10)
+
+        self.listener = tf.TransformListener()
+        self.safe = False
+        self.base_frame = 'base_link'
+        self.servo_sub = rospy.Subscriber('/my_gen3/servo_server/delta_twist_cmds', TwistStamped, self.delta_twist_cmds_cb)
+        self.cart_vel_pub = rospy.Publisher('/my_gen3/in/cartesian_velocity', TwistCommand, queue_size=10)
+        self.finger_sub = rospy.Subscriber('/my_gen3/finger_pose', PoseStamped, self.get_finger_pose)
+        self.min_linear_vel = -0.01
+        self.max_linear_vel =  0.01
+        self.min_angular_vel = -0.1
+        self.max_angular_vel =  0.1
         rospy.spin()
 
-    def servo_cb(self, joint_traj):
-        point = joint_traj.points[0]
+    def get_finger_pose(self, pose):
+        t = rospy.Time.now()
+        pose.header.stamp = t
 
-        joint_speeds = Base_JointSpeeds()
-        for i, v in enumerate(point.velocity):
-            speed = JointSpeed()
-            speed.joint_identifier = i
-            speed.value = v
-            speed.duration = 0
-            joint_speeds.joint_speeds.append(speed)
+        self.listener.waitForTransform(pose.header.frame_id, self.base_frame, t, rospy.Duration(4.0) )
+        self.finger_pose = self.listener.transformPose(self.base_frame, pose)
+        
+        if (self.finger_pose.pose.position.z < 0.1):
+            self.safe = False
+        else:
+            self.safe = True
 
-        self.joint_vel_pub.publish(joint_speeds)
+    def delta_twist_cmds_cb(self, delta_twist):
+
+        twist = TwistCommand()
+        twist.reference_frame = 0
+        twist.duration = 0
+
+        if self.safe:
+            twist.twist.linear_x = clamp(delta_twist.twist.linear.x, self.min_linear_vel, self.max_linear_vel)
+            twist.twist.linear_y = clamp(delta_twist.twist.linear.y, self.min_linear_vel, self.max_linear_vel)
+            twist.twist.linear_z = clamp(delta_twist.twist.linear.z, self.min_linear_vel, self.max_linear_vel)
+            twist.twist.angular_x = clamp(delta_twist.twist.angular.x, self.min_angular_vel, self.max_angular_vel)
+            twist.twist.angular_y = clamp(delta_twist.twist.angular.y, self.min_angular_vel, self.max_angular_vel)
+            twist.twist.angular_z = clamp(delta_twist.twist.angular.z, self.min_angular_vel, self.max_angular_vel)
+        else:
+            twist.twist.linear_x = 0.0
+            twist.twist.linear_y = 0.0
+            twist.twist.linear_z = 0.0
+            twist.twist.angular_x = 0.0
+            twist.twist.angular_y = 0.0
+            twist.twist.angular_z = 0.0
+
+
+        self.cart_vel_pub.publish(twist)
 
 if __name__ == '__main__':
-    track = KortexHack()
+    physical_arm = KortexHack()

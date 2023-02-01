@@ -73,7 +73,7 @@ class FindPutty:
 
         #Virtual robot in RIVR or phyical robot
         #   determines which topics to subscribe too
-        is_sim = rospy.get_param("~rivr", True)
+        self.is_sim = rospy.get_param("~rivr", True)
 
 
         self.debug = rospy.get_param("~debug", True) 
@@ -100,7 +100,7 @@ class FindPutty:
 
         rospy.loginfo("type: %s max r: %i max g: %i max b: %i" % (self.type, max_r, max_g, max_b))
 
-        if is_sim:
+        if self.is_sim:
             rospy.loginfo("virtual robot")
             # Threshold of anode (red) in BGR space
             self.min_color = np.array([min_b, min_g, min_r])
@@ -113,9 +113,9 @@ class FindPutty:
             # Threshold of anode (red) in RGB space
             self.min_color = np.array([min_r, min_g, min_b])
             self.max_color = np.array([max_r, max_g, max_b])
-            self.depth_cam_info = rospy.wait_for_message("/camera/color/camera_info", CameraInfo, timeout=None)
+            self.depth_cam_info = rospy.wait_for_message("/camera/depth_registered/sw_registered/camera_info", CameraInfo, timeout=None)
             self.rgb_image_sub = message_filters.Subscriber('/camera/color/image_rect_color', Image)
-            self.depth_image_sub = message_filters.Subscriber('/camera/depth/image_rect', Image)
+            self.depth_image_sub = message_filters.Subscriber('/camera/depth_registered/sw_registered/image_rect_raw', Image)
 
         self.cam_model = image_geometry.PinholeCameraModel()
         self.cam_model.fromCameraInfo(self.depth_cam_info)
@@ -135,6 +135,8 @@ class FindPutty:
 
         rgb = np.asarray(self.bridge.imgmsg_to_cv2(rgb_ros_image, desired_encoding="passthrough"))
         depth = np.asarray(self.bridge.imgmsg_to_cv2(depth_ros_image, desired_encoding="passthrough"))
+
+
         blur = cv2.GaussianBlur(rgb, (21, 21), 5)
 
         # preparing the mask to overlay
@@ -179,7 +181,7 @@ class FindPutty:
             #debugging messages for visualization
             rgb_masked = cv2.bitwise_and(rgb, rgb, mask=image_mask)
             self.img_pub.publish(self.bridge.cv2_to_imgmsg(rgb_masked, encoding="passthrough"))
-            #self.pc_pub.publish(pc2.create_cloud_xyz32(depth_ros_image.header, points))
+            self.pc_pub.publish(pc2.create_cloud_xyz32(depth_ros_image.header, points))
             self.marker_pub.publish(get_marker(x,y,z,w,h,d,self.planning_frame,self.type))
 
         else:
