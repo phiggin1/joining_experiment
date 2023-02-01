@@ -84,23 +84,23 @@ class GetTargetPose:
         target = JoinPose()
         
         #error checking
-        target.too_far.data = False     #cathode and anode close enough
-        target.too_close.data = False   #cathode and anode far enough apart to not be touching
-        target.see_cathode.data = True  #can see cathode
-        target.see_anode.data = True    #can see anode
-        target.in_workspace.data = True #is cathode&anode in workspace
+        target.too_far = False     #cathode and anode close enough
+        target.too_close = False   #cathode and anode far enough apart to not be touching
+        target.see_cathode = True  #can see cathode
+        target.see_anode = True    #can see anode
+        target.in_workspace = True #is cathode&anode in workspace
         target.move_direction = ""      #   if not move right/left/up/down/closer/farther
 
         see = True
         now = rospy.Time.now()
         if now > (self.last_valid_anode + rospy.Duration(self.wait)) or self.anode is None:
-            target.see_anode.data = False
-            target.in_workspace.data = False 
+            target.see_anode = False
+            target.in_workspace = False 
             see = False
             rospy.loginfo("see_anode = False")
         if now > (self.last_valid_cathode + rospy.Duration(self.wait)) or self.cathode is None:
-            target.see_cathode.data = False
-            target.in_workspace.data = False 
+            target.see_cathode = False
+            target.in_workspace = False 
             see = False
             rospy.loginfo("see_cathode = False")
 
@@ -130,8 +130,10 @@ class GetTargetPose:
         #forward vector in base_link space 
         b = (1, 0, 0)
 
-        pa = [  anode.point.x,   anode.point.y,   (anode.point.z+0.5*anode.h.data)]
-        pc = [cathode.point.x, cathode.point.y, (cathode.point.z+0.5*anode.h.data)]
+        #pa = [  anode.point.x,   anode.point.y,   (anode.point.z+0.5*anode.h.data)]
+        #pc = [cathode.point.x, cathode.point.y, (cathode.point.z+0.5*anode.h.data)]
+        pa = [  anode.point.x,   anode.point.y,   anode.point.z]
+        pc = [cathode.point.x, cathode.point.y, cathode.point.z]
 
         #check if to cathode or anode are too close/far
         d = dist(pa, pc)
@@ -139,13 +141,13 @@ class GetTargetPose:
         if d <= self.min_dist:
             target.too_close = True
         elif d > self.max_dist:
-            target.too_far.data = True
+            target.too_far = True
 
         #yaw (in kinect frame around y axis)
         theta = np.arccos( dot(a,b)/(norm(a)*norm(b)) )
 
         #generate quaternion from the yaw
-        quat = quaternion_from_euler(math.pi, 0.0, theta )          
+        quat = quaternion_from_euler(math.pi, 0.0, theta)          
 
         #the target position is between the anode and cathode
         target.pose.position.x = (pa[0]+pc[0])/2.0
@@ -159,23 +161,23 @@ class GetTargetPose:
         move_direction = []
         #check if in workspace
         if target.pose.position.x < self.min_x:
-            target.in_workspace.data = False
+            target.in_workspace = False
             move_direction.append("farther from me")
         elif target.pose.position.x > self.max_x:
-            target.in_workspace.data = False
+            target.in_workspace = False
             move_direction.append("closer to me")
         if target.pose.position.y < self.min_y:
-            target.in_workspace.data = False
+            target.in_workspace = False
             move_direction.append("to my right")
         elif target.pose.position.y > self.max_y:
-            target.in_workspace.data = False
+            target.in_workspace = False
             move_direction.append("to my left")
 
         if target.pose.position.z < self.min_z:
             move_direction.append("up")
-            target.in_workspace.data = False
+            target.in_workspace = False
         elif target.pose.position.z > self.max_z:            
-            target.in_workspace.data = False
+            target.in_workspace = False
             move_direction.append("down")
 
         target.move_direction = move_direction
@@ -192,13 +194,13 @@ class GetTargetPose:
 
         self.pose_stamped_pub.publish(stamped_pose)
 
-        
+        '''
         rospy.loginfo("positon:     x:%.4f\ty:%.4f\tz:%.4f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
         rospy.loginfo("orientation: x:%.4f\ty:%.4f\tz:%.4f\tw:%.4f" % (target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z, target.pose.orientation.w))
         rospy.loginfo("dist:%.4f min_dist:%.4f max_dist:%.4f" %(d,self.min_dist,self.max_dist))
-        rospy.loginfo("too_close:%r too_far:%r" % (target.too_close, target.too_far.data))
+        rospy.loginfo("too_close:%r too_far:%r" % (target.too_close, target.too_far))
         rospy.loginfo(move_direction)
-        
+        '''
         
         self.target_pub.publish(target)
 

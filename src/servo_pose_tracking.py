@@ -178,9 +178,9 @@ class Tracker:
         
 
     def get_target_pose(self, tar_pose):
-        if (not tar_pose.too_far.data and not tar_pose.too_close.data and
-            tar_pose.see_cathode.data and tar_pose.see_anode.data and
-            tar_pose.in_workspace.data):
+        if (not tar_pose.too_far and not tar_pose.too_close and
+            tar_pose.see_cathode and tar_pose.see_anode and
+            tar_pose.in_workspace):
 
             pose = PoseStamped()
             pose.header = tar_pose.header

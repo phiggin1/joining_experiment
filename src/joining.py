@@ -126,13 +126,13 @@ class GoToTarget:
             repeat = input("Saying: " + text+"\tRepeat (y/n): ")
 
     def get_target(self, target):
-        too_far = target.too_far.data
-        too_close = target.too_close.data
+        too_far = target.too_far
+        too_close = target.too_close
             
-        see_anode = target.see_anode.data
-        see_cathode = target.see_cathode.data
+        see_anode = target.see_anode
+        see_cathode = target.see_cathode
 
-        in_workspace = target.in_workspace.data
+        in_workspace = target.in_workspace
         directions = target.move_direction
 
         self.error_count 
