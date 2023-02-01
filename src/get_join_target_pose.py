@@ -194,13 +194,13 @@ class GetTargetPose:
 
         self.pose_stamped_pub.publish(stamped_pose)
 
-        '''
+        
         rospy.loginfo("positon:     x:%.4f\ty:%.4f\tz:%.4f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
         rospy.loginfo("orientation: x:%.4f\ty:%.4f\tz:%.4f\tw:%.4f" % (target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z, target.pose.orientation.w))
         rospy.loginfo("dist:%.4f min_dist:%.4f max_dist:%.4f" %(d,self.min_dist,self.max_dist))
         rospy.loginfo("too_close:%r too_far:%r" % (target.too_close, target.too_far))
         rospy.loginfo(move_direction)
-        '''
+        
         
         self.target_pub.publish(target)
 

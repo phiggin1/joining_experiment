@@ -92,7 +92,7 @@ class Tracker:
 
         self.listener = tf.TransformListener()
 
-        self.positional_tolerance = 0.01
+        self.positional_tolerance = 0.012
         self.angular_tolerance = 0.1
 
         self.pub_rate = 200 #hz
@@ -131,6 +131,7 @@ class Tracker:
         self.see_anode = True 
         self.wait_time = 1.0
         self.last_valid_target = rospy.Time.now()
+        self.pause = True
 
         self.finger_sub = rospy.Subscriber('finger_pose', PoseStamped, self.get_finger_pose)
         #self.target_sub = rospy.Subscriber('/target/target_pose', PoseStamped, self.get_target_pose)   #testing subscriber
@@ -182,6 +183,8 @@ class Tracker:
             tar_pose.see_cathode and tar_pose.see_anode and
             tar_pose.in_workspace):
 
+            self.pause = False
+
             pose = PoseStamped()
             pose.header = tar_pose.header
             pose.pose = tar_pose.pose
@@ -191,7 +194,8 @@ class Tracker:
             self.listener.waitForTransform(pose.header.frame_id, self.base_frame, t, rospy.Duration(4.0) )
             self.target_pose = self.listener.transformPose(self.base_frame, pose)
             self.last_valid_target = rospy.Time.now()
-
+        else:
+            self.pause = True
         '''
         (r, p, y) = euler_from_quaternion(quat_from_orientation(self.target_pose.pose.orientation))
                 
@@ -236,8 +240,11 @@ class Tracker:
 
         rate = rospy.Rate(self.pub_rate) # 10hz
         while (not self.satisfy_tolerance(angular_error, positional_error) and self.total_time < self.time_out):  
-            if (self.target_pose is None or self.finger_pose is None or (rospy.Time.now()  > (self.last_valid_target + rospy.Duration(self.wait_time)))):
-                #print('pass')
+            if (self.target_pose is None or self.finger_pose is None or (rospy.Time.now()  > (self.last_valid_target + rospy.Duration(self.wait_time))) or self.pause):
+                zero_vel = zero_twist()
+                zero_vel.header.frame_id = self.base_frame
+                zero_vel.header.stamp = rospy.Time.now()
+                self.cart_vel_pub.publish(zero_vel)
                 continue
 
             time = rospy.Time.now().to_sec()
