@@ -118,12 +118,15 @@ class GoToTarget:
 
         return False
 
-    def talk(self, text):
+    def talk(self, text, say_again=False):
         self.rivr_robot_speech.publish(text)
-        repeat = input("Saying: " + text+"\tRepeat (y/n): ")
-        while (repeat == 'y'):
-            self.rivr_robot_speech.publish(text)
+        if say_again:
             repeat = input("Saying: " + text+"\tRepeat (y/n): ")
+            while (repeat == 'y'):
+                self.rivr_robot_speech.publish(text)
+                repeat = input("Saying: " + text+"\tRepeat (y/n): ")
+        else:
+            print("Saying: " + text)
 
     def get_target(self, target):
         too_far = target.too_far
@@ -239,20 +242,20 @@ class GoToTarget:
         self.failures = 0
                
         #move to handover position
-        print('hand over pose')
+        print('moving to hand over pose')
         self.arm_move_group.set_max_velocity_scaling_factor(1.0)
         self.arm_move_group.go(self.hand_over_pose, wait=True)
 
         print('open hand')
         self.move_fingers(self.hand_partial_closed)
 
-        self.talk("Can you please put the l e d between my fingers? The wires should be facing you with the shorter wire on your right.")
+        self.talk("Can you please put the L E D between my fingers? The wires should be facing you with the wires horizontal.", say_again = True)
         
         #give acknowledgement?
         self.grab.publish("grabbed")
         self.move_fingers(self.hand_closed)
         print('\nclosed hand')
-        self.talk("Thank you")
+        self.talk("Thank you.")
         
         #move to retreat
         self.arm_move_group.set_max_velocity_scaling_factor(1.0)
@@ -262,13 +265,13 @@ class GoToTarget:
         self.arm_move_group.set_max_velocity_scaling_factor(1.0)
         self.arm_move_group.go(self.intial_pose, wait=True)
         
-        self.talk("Can you please place the lead of the red wire into the red putty")
+        self.talk("Can you please place the lead of the red wire into the red putty.", say_again = True)
         input("\nPress Enter to continue...")
 
-        self.talk("Can you place the lead of the black wire into the green putty")
+        self.talk("Can you place the lead of the black wire into the green putty.", say_again = True)
         input("\nPress Enter to continue...")
 
-        self.talk("Can you hold the two pieces of putty up in front of me?")
+        self.talk("Can you hold the two pieces of putty up in front of me?", say_again = True)
         input("\nPress Enter to continue...")
         
         reached_target = False
@@ -282,7 +285,7 @@ class GoToTarget:
             standoff_pose.pose.position.z += self.standoff_distance
             print(standoff_pose.pose.position)
 
-            print('standoff')
+            print('moveing to standoff pose')
             print(standoff_pose.pose.position)
             
             self.move_arm(standoff_pose, 1.0)
@@ -296,7 +299,7 @@ class GoToTarget:
             rospy.sleep(0.10)
 
             #check if should open hand
-            self.talk("did the L E D light up")
+            self.talk("Did the L E D light up?")
             i = input("Open hand (y/n) ")
             if i == 'y':
                 print('open hand')
@@ -305,10 +308,10 @@ class GoToTarget:
                 #self.talk("thank you")
                 reached_target = True
             else:
-                self.talk("i will try again")
+                self.talk("I will try again.")
                 self.failures += 1
             
-            print('inital')
+            print('moveing to inital pose')
             self.arm_move_group.go(self.intial_pose, wait=True)
             
         #re home the arm

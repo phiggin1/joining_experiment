@@ -4,6 +4,7 @@ import soundfile as sf
 import json
 import rospy
 from std_msgs.msg import String
+import festival
 
 class TextToSpeech:
     def __init__(self):
@@ -16,13 +17,10 @@ class TextToSpeech:
         rospy.spin()
 
     def talk(self, str_msg):
-        import festival
-
         text = str_msg.data
         now = now = rospy.Time.now().to_sec()
         if (self.last_time_spoke is None or now > self.last_time_spoke+self.speech_delay):
             self.last_time_spoke = rospy.Time.now().to_sec()
-            
             if self.is_sim:
                 print("Saying rivr: " + text)
                 wav = festival.textToWav(text)

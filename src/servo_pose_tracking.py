@@ -100,7 +100,8 @@ class Tracker:
         #number of zero twist halt msgs to send to get servo_server to halt
         self.num_halt_msgs = 20
 
-        self.time_out = 10.0
+        self.time_out = 5.0
+        self.wait_time = 1.0
 
         self.is_sim = rospy.get_param("~rivr", True)
         if self.is_sim:
@@ -129,7 +130,6 @@ class Tracker:
         self.near = True
         self.see_cathode = True
         self.see_anode = True 
-        self.wait_time = 1.0
         self.last_valid_target = rospy.Time.now()
         self.pause = True
 
@@ -240,7 +240,7 @@ class Tracker:
 
         rate = rospy.Rate(self.pub_rate) # 10hz
         while (not self.satisfy_tolerance(angular_error, positional_error) and self.total_time < self.time_out):  
-            if (self.target_pose is None or self.finger_pose is None or (rospy.Time.now()  > (self.last_valid_target + rospy.Duration(self.wait_time))) or self.pause):
+            if (self.target_pose is None or self.finger_pose is None or (rospy.Time.now()  > (self.last_valid_target + rospy.Duration(self.wait_time)))):
                 zero_vel = zero_twist()
                 zero_vel.header.frame_id = self.base_frame
                 zero_vel.header.stamp = rospy.Time.now()
@@ -339,11 +339,13 @@ class Tracker:
 
             rate.sleep()
 
-        '''rospy.loginfo('pre writing')
+        '''
+        rospy.loginfo('pre writing')
         data_csv = pd.DataFrame(self.data)
         data_csv.to_csv('/home/iral/'+str(rospy.Time.now().to_sec())+'error.csv')#, index_label='timestamp')
         rospy.loginfo('post writing')
-        rospy.sleep(5)'''
+        rospy.sleep(5)
+        '''
         
         #send zero twist to halt servoing
         pose_vel = zero_twist()

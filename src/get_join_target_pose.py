@@ -31,7 +31,7 @@ class GetTargetPose:
         self.max_dist = rospy.get_param("max_dist", 75.0/1000.0)
 
         self.min_x = rospy.get_param("min_x", 0.0)
-        self.max_x = rospy.get_param("max_x", 0.75)
+        self.max_x = rospy.get_param("max_x", 0.65)
         self.min_y = rospy.get_param("min_y", -0.5)
         self.max_y = rospy.get_param("max_y", 0.5)
         self.min_z = rospy.get_param("min_z", 0.0)
@@ -97,18 +97,20 @@ class GetTargetPose:
             target.see_anode = False
             target.in_workspace = False 
             see = False
-            rospy.loginfo("see_anode = False")
+            #rospy.loginfo("see_anode = False")
         if now > (self.last_valid_cathode + rospy.Duration(self.wait)) or self.cathode is None:
             target.see_cathode = False
             target.in_workspace = False 
             see = False
-            rospy.loginfo("see_cathode = False")
+            #rospy.loginfo("see_cathode = False")
 
         if not see:
             self.target_pub.publish(target)
-            '''rospy.loginfo("positon:     x:%.4f\ty:%.4f\tz:%.4f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
+            '''
+            rospy.loginfo("positon:     x:%.4f\ty:%.4f\tz:%.4f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
             rospy.loginfo("orientation: x:%.4f\ty:%.4f\tz:%.4f\tw:%.4f" % (target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z, target.pose.orientation.w))
-            rospy.loginfo("see_anode:%r see_cathode:%r" % (target.see_anode, target.see_cathode))'''
+            rospy.loginfo("see_anode:%r see_cathode:%r" % (target.see_anode, target.see_cathode))
+            '''
             return
 
 
@@ -130,10 +132,11 @@ class GetTargetPose:
         #forward vector in base_link space 
         b = (1, 0, 0)
 
-        #pa = [  anode.point.x,   anode.point.y,   (anode.point.z+0.5*anode.h.data)]
-        #pc = [cathode.point.x, cathode.point.y, (cathode.point.z+0.5*anode.h.data)]
-        pa = [  anode.point.x,   anode.point.y,   anode.point.z]
-        pc = [cathode.point.x, cathode.point.y, cathode.point.z]
+        pa = [  anode.point.x,   anode.point.y,   (anode.point.z+0.5*anode.h.data)]
+        pc = [cathode.point.x, cathode.point.y, (cathode.point.z+0.5*anode.h.data)]
+        
+        #pa = [  anode.point.x,   anode.point.y,   anode.point.z]
+        #pc = [cathode.point.x, cathode.point.y, cathode.point.z]
 
         #check if to cathode or anode are too close/far
         d = dist(pa, pc)
@@ -195,13 +198,13 @@ class GetTargetPose:
 
         self.pose_stamped_pub.publish(stamped_pose)
 
-        
+        '''
         rospy.loginfo("positon:     x:%.4f\ty:%.4f\tz:%.4f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
         rospy.loginfo("orientation: x:%.4f\ty:%.4f\tz:%.4f\tw:%.4f" % (target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z, target.pose.orientation.w))
         rospy.loginfo("dist:%.4f min_dist:%.4f max_dist:%.4f" %(d,self.min_dist,self.max_dist))
         rospy.loginfo("too_close:%r too_far:%r" % (target.too_close, target.too_far))
         rospy.loginfo(move_direction)
-        
+        '''
         
         self.target_pub.publish(target)
 
