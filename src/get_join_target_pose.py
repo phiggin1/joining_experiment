@@ -147,7 +147,8 @@ class GetTargetPose:
         theta = np.arccos( dot(a,b)/(norm(a)*norm(b)) )
 
         #generate quaternion from the yaw
-        quat = quaternion_from_euler(math.pi, 0.0, theta)          
+        #quat = quaternion_from_euler(math.pi, 0.0, theta)     
+        quat = quaternion_from_euler(math.pi, 0.0, math.pi/2.0)          
 
         #the target position is between the anode and cathode
         target.pose.position.x = (pa[0]+pc[0])/2.0

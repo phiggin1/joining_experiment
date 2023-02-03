@@ -25,8 +25,9 @@ while not rospy.is_shutdown():
     pose.header.frame_id = effector
     pose.header.stamp = now
     pose.pose.position.x = 0.0
-    pose.pose.position.y = 0.0
-    pose.pose.position.z = 0.035
+    pose.pose.position.y = 0.015
+    pose.pose.position.z = 0.055
+
     pose.pose.orientation.w = 1.0
 
     pose_pub.publish(pose)
