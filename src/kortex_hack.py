@@ -18,10 +18,10 @@ class KortexHack:
         self.servo_sub = rospy.Subscriber('/my_gen3/servo_server/delta_twist_cmds', TwistStamped, self.delta_twist_cmds_cb)
         self.cart_vel_pub = rospy.Publisher('/my_gen3/in/cartesian_velocity', TwistCommand, queue_size=10)
         self.finger_sub = rospy.Subscriber('/my_gen3/finger_pose', PoseStamped, self.get_finger_pose)
-        self.min_linear_vel = -0.01
-        self.max_linear_vel =  0.01
-        self.min_angular_vel = -0.1
-        self.max_angular_vel =  0.1
+        self.min_linear_vel = -0.025
+        self.max_linear_vel =  0.025
+        self.min_angular_vel = -0.2
+        self.max_angular_vel =  0.2
         rospy.spin()
 
     def get_finger_pose(self, pose):

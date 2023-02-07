@@ -17,7 +17,7 @@ tf_listener = tf.TransformListener()
 tf_broadcase = tf.TransformBroadcaster()
 rospy.sleep(1)
 
-rate = rospy.Rate(10) # 10hz
+rate = rospy.Rate(60) # 10hz
 while not rospy.is_shutdown():
     now = rospy.Time.now()
 
@@ -25,8 +25,8 @@ while not rospy.is_shutdown():
     pose.header.frame_id = effector
     pose.header.stamp = now
     pose.pose.position.x = 0.0
-    pose.pose.position.y = 0.015
-    pose.pose.position.z = 0.055
+    pose.pose.position.y = 0.012
+    pose.pose.position.z = 0.05
 
     pose.pose.orientation.w = 1.0
 

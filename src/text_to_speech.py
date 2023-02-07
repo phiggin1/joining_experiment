@@ -4,7 +4,6 @@ import soundfile as sf
 import json
 import rospy
 from std_msgs.msg import String
-import festival
 
 class TextToSpeech:
     def __init__(self):
@@ -17,6 +16,7 @@ class TextToSpeech:
         rospy.spin()
 
     def talk(self, str_msg):
+        import festival
         text = str_msg.data
         now = now = rospy.Time.now().to_sec()
         if (self.last_time_spoke is None or now > self.last_time_spoke+self.speech_delay):
@@ -28,7 +28,8 @@ class TextToSpeech:
                 string_msg =json.dumps(list(data[0]))
                 self.rivr_robot_speech.publish(string_msg)
             else:
-                festival.sayText(str)
+                print("Saying: " + text)
+                festival.sayText(text)
 
 
 if __name__ == '__main__':

@@ -80,7 +80,7 @@ class FindPutty:
 
         #step size to move through depth image
         #   iterating through whole image too slow
-        self.step = rospy.get_param("~step", 4)
+        self.step = rospy.get_param("~step", 6)
 
         #Range of colors to filter on
         min_r = rospy.get_param("~min_r", 0)
@@ -179,10 +179,10 @@ class FindPutty:
             #rospy.loginfo(obj)
 
             #debugging messages for visualization
-            rgb_masked = cv2.bitwise_and(rgb, rgb, mask=image_mask)
-            self.img_pub.publish(self.bridge.cv2_to_imgmsg(rgb_masked, encoding="passthrough"))
-            self.pc_pub.publish(pc2.create_cloud_xyz32(depth_ros_image.header, points))
-            self.marker_pub.publish(get_marker(x,y,z,w,h,d,self.planning_frame,self.type))
+            #rgb_masked = cv2.bitwise_and(rgb, rgb, mask=image_mask)
+            #self.img_pub.publish(self.bridge.cv2_to_imgmsg(rgb_masked, encoding="passthrough"))
+            #self.pc_pub.publish(pc2.create_cloud_xyz32(depth_ros_image.header, points))
+            #self.marker_pub.publish(get_marker(x,y,z,w,h,d,self.planning_frame,self.type))
 
         else:
             rospy.loginfo("Empty "+self.type+" pointcloud")

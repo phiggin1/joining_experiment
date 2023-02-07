@@ -46,7 +46,7 @@ class GetTargetPose:
         self.cathode = None
         self.last_valid_anode = rospy.Time.now()
         self.last_valid_cathode = rospy.Time.now()
-        self.wait = 1.0
+        self.wait = 0.50
 
         self.min_dist =  0.00750
         self.max_dist =  0.075
@@ -65,7 +65,7 @@ class GetTargetPose:
         self.ts.registerCallback(self.callback)
         '''
         rospy.sleep(5.0)
-        rate =rospy.Rate(10)
+        rate =rospy.Rate(60)
         while not rospy.is_shutdown():
             #if self.anode is not None and self.cathode is not None:
             self.callback(self.cathode, self.anode)
@@ -82,7 +82,14 @@ class GetTargetPose:
 
     def callback(self, cathode, anode):       
         target = JoinPose()
-        
+        target.pose.position.x = 0.0
+        target.pose.position.y = 0.0
+        target.pose.position.z = 0.0
+        target.pose.orientation.x = 0.0
+        target.pose.orientation.y = 0.0
+        target.pose.orientation.z = 0.0
+        target.pose.orientation.w = 1.0
+
         #error checking
         target.too_far = False     #cathode and anode close enough
         target.too_close = False   #cathode and anode far enough apart to not be touching
@@ -97,34 +104,21 @@ class GetTargetPose:
             target.see_anode = False
             target.in_workspace = False 
             see = False
-            #rospy.loginfo("see_anode = False")
+            rospy.loginfo("see_anode = False")
         if now > (self.last_valid_cathode + rospy.Duration(self.wait)) or self.cathode is None:
             target.see_cathode = False
             target.in_workspace = False 
             see = False
-            #rospy.loginfo("see_cathode = False")
+            rospy.loginfo("see_cathode = False")
 
         if not see:
             self.target_pub.publish(target)
-            '''
-            rospy.loginfo("positon:     x:%.4f\ty:%.4f\tz:%.4f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
-            rospy.loginfo("orientation: x:%.4f\ty:%.4f\tz:%.4f\tw:%.4f" % (target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z, target.pose.orientation.w))
-            rospy.loginfo("see_anode:%r see_cathode:%r" % (target.see_anode, target.see_cathode))
-            '''
+            
+            #rospy.loginfo("see_anode:%r see_cathode:%r" % (target.see_anode, target.see_cathode))
+            
             return
 
-
-        target.header = cathode.header
-
-        target.pose.position.x = 0.0
-        target.pose.position.y = 0.0
-        target.pose.position.z = 0.0
-        target.pose.orientation.x = 0.0
-        target.pose.orientation.y = 0.0
-        target.pose.orientation.z = 0.0
-        target.pose.orientation.w = 1.0
-
-        #vectort from anode to cathode
+        #vector from anode to cathode
         a = [anode.point.x - cathode.point.x,
              anode.point.y - cathode.point.y,
              anode.point.z - cathode.point.z]
@@ -154,6 +148,7 @@ class GetTargetPose:
         quat = quaternion_from_euler(math.pi, 0.0, math.pi/2.0)          
 
         #the target position is between the anode and cathode
+        target.header = cathode.header
         target.pose.position.x = (pa[0]+pc[0])/2.0
         target.pose.position.y = (pa[1]+pc[1])/2.0 
         target.pose.position.z = (pa[2]+pc[2])/2.0
@@ -166,10 +161,10 @@ class GetTargetPose:
         #check if in workspace
         if target.pose.position.x < self.min_x:
             target.in_workspace = False
-            move_direction.append("farther from me")
+            move_direction.append("farther from my base")
         elif target.pose.position.x > self.max_x:
             target.in_workspace = False
-            move_direction.append("closer to me")
+            move_direction.append("closer to my base")
         if target.pose.position.y < self.min_y:
             target.in_workspace = False
             move_direction.append("to my right")
@@ -198,13 +193,13 @@ class GetTargetPose:
 
         self.pose_stamped_pub.publish(stamped_pose)
 
-        '''
-        rospy.loginfo("positon:     x:%.4f\ty:%.4f\tz:%.4f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
+        
+        '''rospy.loginfo("positon:     x:%.4f\ty:%.4f\tz:%.4f" % (target.pose.position.x, target.pose.position.y, target.pose.position.z) )
         rospy.loginfo("orientation: x:%.4f\ty:%.4f\tz:%.4f\tw:%.4f" % (target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z, target.pose.orientation.w))
         rospy.loginfo("dist:%.4f min_dist:%.4f max_dist:%.4f" %(d,self.min_dist,self.max_dist))
         rospy.loginfo("too_close:%r too_far:%r" % (target.too_close, target.too_far))
-        rospy.loginfo(move_direction)
-        '''
+        rospy.loginfo(move_direction)'''
+        
         
         self.target_pub.publish(target)
 

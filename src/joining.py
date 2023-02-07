@@ -28,7 +28,7 @@ class GoToTarget:
 
         self.finger_open = 0.01
         self.finger_partial_closed = 0.68
-        self.finger_closed = 0.74
+        self.finger_closed = 0.8
 
         self.hand_open = [self.finger_open, self.finger_open, self.finger_open, 
                           self.finger_open, self.finger_open, self.finger_open]
@@ -41,7 +41,7 @@ class GoToTarget:
         self.goal_tolerance = 0.0025        #m
 
 
-        self.error_count = 10
+        self.error_count = 5
         self.count_too_far = 0
         self.count_too_close = 0
         self.count_see_anode = 0
@@ -54,7 +54,7 @@ class GoToTarget:
         self.presented = False
 
         self.hand_over_pose =           [0.0, 0.26, -2.27, 0.0,  0.96, 1.57]
-        self.hand_over_pose_retreat =   [0.0, 0.0,  -2.61, 0.0,  1.04, 1.57]
+        self.hand_over_pose_retreat =   [0.0, 0.10472,  -2.49582, 0.0,  1.02974, 1.5708]
         self.intial_pose =              [0.0, 0.31,  -1.14, 0.0, -1.67, 1.57]
 
         self.listener = tf.TransformListener()
@@ -147,7 +147,7 @@ class GoToTarget:
             self.count_see_cathode += 1
             if self.presented:
                 if now > self.last_time_spoke+self.speech_delay and self.count_see_anode >= self.error_count and self.count_see_cathode >= self.error_count:
-                    self.talk("Can you please move the red and green putty to where I can see them?")
+                    self.talk("Can you please move the red and green putty below my hand?")
                     self.last_time_spoke = now
                     self.count_see_anode = 0
                     self.count_see_cathode = 0
@@ -156,7 +156,7 @@ class GoToTarget:
             self.count_see_anode += 1
             if self.presented:
                 if now > self.last_time_spoke+self.speech_delay and self.count_see_anode >= self.error_count:
-                    self.talk("Can you please move the red putty where I can see it?")
+                    self.talk("Can you please move the red putty  below my hand?")
                     self.last_time_spoke = now
                     self.count_see_anode = 0
         elif not see_cathode: 
@@ -164,7 +164,7 @@ class GoToTarget:
             self.count_see_cathode += 1
             if self.presented:
                 if now > self.last_time_spoke+self.speech_delay and self.count_see_cathode >= self.error_count:
-                    self.talk("Can you please move the green putty where I can see it?")
+                    self.talk("Can you please move the green putty  below my hand?")
                     self.last_time_spoke = now
                     self.count_see_cathode = 0
         elif too_far: 
@@ -243,13 +243,13 @@ class GoToTarget:
                
         #move to handover position
         print('moving to hand over pose')
-        self.arm_move_group.set_max_velocity_scaling_factor(1.0)
+        self.arm_move_group.set_max_velocity_scaling_factor(0.750)
         self.arm_move_group.go(self.hand_over_pose, wait=True)
 
         print('open hand')
         self.move_fingers(self.hand_partial_closed)
 
-        self.talk("Can you please put the L E D between my fingers? The wires should be facing you with the wires horizontal.", say_again = True)
+        self.talk("Can you please put the L E D between my fingers? The wires should be horizontal and facing you.", say_again = True)
         
         #give acknowledgement?
         self.grab.publish("grabbed")
@@ -258,11 +258,11 @@ class GoToTarget:
         self.talk("Thank you.")
         
         #move to retreat
-        self.arm_move_group.set_max_velocity_scaling_factor(1.0)
+        self.arm_move_group.set_max_velocity_scaling_factor(0.750)
         self.arm_move_group.go(self.hand_over_pose_retreat, wait=True)
     
         #move to intial positon above
-        self.arm_move_group.set_max_velocity_scaling_factor(1.0)
+        self.arm_move_group.set_max_velocity_scaling_factor(0.750)
         self.arm_move_group.go(self.intial_pose, wait=True)
         
         self.talk("Can you please place the lead of the red wire into the red putty.", say_again = True)
@@ -271,7 +271,7 @@ class GoToTarget:
         self.talk("Can you place the lead of the black wire into the green putty.", say_again = True)
         input("\nPress Enter to continue...")
 
-        self.talk("Can you hold the two pieces of putty up in front of me?", say_again = True)
+        self.talk("Can you hold the two pieces of putty below my hand? They should be close together but not touching.", say_again = True)
         input("\nPress Enter to continue...")
         
         reached_target = False
@@ -282,13 +282,14 @@ class GoToTarget:
             standoff_pose = self.get_init_target()
             print(standoff_pose.pose.position)
             self.presented = False
+            #standoff_pose.pose.position.x -= self.standoff_distance
             standoff_pose.pose.position.z += self.standoff_distance
             print(standoff_pose.pose.position)
 
             print('moveing to standoff pose')
             print(standoff_pose.pose.position)
             
-            self.move_arm(standoff_pose, 1.0)
+            self.move_arm(standoff_pose, 0.50)
             
             rospy.loginfo('pre servo')
             self.presented = True

@@ -35,7 +35,8 @@ def pose2sting(p):
     quat_rot_str = np.array2string(np.asarray(rot),  precision=2, separator=',')
     euler_rot_str = np.array2string(np.asarray(euler_from_quaternion(rot)),  precision=2, separator=',', suppress_small=True)
 
-    return "Position: %s\tOrientation: %s" % (pos_str, euler_rot_str)
+    #return "Position: %s\tOrientation: %s" % (pos_str, euler_rot_str)
+    return "Position: %s" % (pos_str)
 
 def quat2string(q):
     quat__str = np.array2string(np.asarray(q),  precision=2, separator=',')
@@ -92,22 +93,25 @@ class Tracker:
 
         self.listener = tf.TransformListener()
 
-        self.positional_tolerance = 0.012
-        self.angular_tolerance = 0.1
 
-        self.pub_rate = 200 #hz
+        self.pub_rate = 30 #hz
 
         #number of zero twist halt msgs to send to get servo_server to halt
         self.num_halt_msgs = 20
 
-        self.time_out = 5.0
-        self.wait_time = 1.0
+        self.time_out = 10.0
+        self.wait_time = 0.250
 
         self.is_sim = rospy.get_param("~rivr", True)
         if self.is_sim:
             rospy.loginfo("virtual robot")
         else:
             rospy.loginfo("physical robot")
+
+        self.positional_tolerance_x = 0.01
+        self.positional_tolerance_y = 0.01
+        self.positional_tolerance_z = 0.01
+        self.angular_tolerance = 0.1
 
         #proportional gains  
         self.cart_x_kp = rospy.get_param("~cart_x_kp", 1.50)
@@ -212,9 +216,9 @@ class Tracker:
         y_err = positional_error[1]
         z_err = positional_error[2]
 
-        return (abs(x_err) < self.positional_tolerance and
-                abs(y_err) < self.positional_tolerance and
-                abs(z_err) < self.positional_tolerance and
+        return (abs(x_err) < self.positional_tolerance_x and
+                abs(y_err) < self.positional_tolerance_y and
+                abs(z_err) < self.positional_tolerance_z and
                 abs(angular_error) < self.angular_tolerance)
 
 
@@ -250,7 +254,7 @@ class Tracker:
             time = rospy.Time.now().to_sec()
             dt = 1.0/self.pub_rate
         
-            positional_error = get_position_error(self.finger_pose, self.target_pose)
+            positional_error = get_position_error( self.finger_pose, self.target_pose,)
 
             q_t = quat_from_orientation(self.target_pose.pose.orientation)
             q_f = quat_from_orientation(self.finger_pose.pose.orientation)
@@ -258,6 +262,9 @@ class Tracker:
             angular_error, ax, ay, az = angle_axis(q_r)
 
             #get twist linear values from PID controllers
+            #t_l_x = positional_error[0]
+            #t_l_y = positional_error[1] 
+            #t_l_z = positional_error[2] 
             t_l_x = x_pid(positional_error[0], dt)
             t_l_y = y_pid(positional_error[1], dt)
             t_l_z = z_pid(positional_error[2], dt)
@@ -309,9 +316,9 @@ class Tracker:
             pose_vel.header.frame_id = self.base_frame
             pose_vel.header.stamp = rospy.Time.now()
 
-            pose_vel.twist.linear.x = t_l_x 
-            pose_vel.twist.linear.y = t_l_y 
-            pose_vel.twist.linear.z = t_l_z 
+            pose_vel.twist.linear.x = t_l_x if (abs(positional_error[0]) > self.positional_tolerance_x) else 0.0
+            pose_vel.twist.linear.y = t_l_y if (abs(positional_error[1]) > self.positional_tolerance_y) else 0.0
+            pose_vel.twist.linear.z = t_l_z if (abs(positional_error[2]) > self.positional_tolerance_z) else 0.0
 
             pose_vel.twist.angular.x = t_a_x 
             pose_vel.twist.angular.y = t_a_y 
@@ -321,14 +328,16 @@ class Tracker:
             rospy.loginfo('Elapsed time: %f' % self.total_time)
             rospy.loginfo("Target  pose: " + pose2sting(self.target_pose.pose))
             rospy.loginfo("Current pose: " + pose2sting(self.finger_pose.pose))
-            rospy.loginfo("Postional error    x: %.3f" % positional_error[0])
-            rospy.loginfo("Postional error    y: %.3f" % positional_error[1])
-            rospy.loginfo("Postional error    z: %.3f" % positional_error[2])
-            rospy.loginfo("Positional tolerance: %f" % (self.positional_tolerance))
-            rospy.loginfo("Angular error       : %f" % (angular_error))
-            rospy.loginfo("angular tolerance   : %f" % (self.angular_tolerance))
-            
-            rospy.loginfo("Output: %.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f"%(pose_vel.twist.linear.x,pose_vel.twist.linear.y,pose_vel.twist.linear.z,pose_vel.twist.angular.x,pose_vel.twist.angular.y,pose_vel.twist.angular.z))
+
+            rospy.loginfo("Postional error x: %.3f\tPositional tolerance x: %f" % (positional_error[0], self.positional_tolerance_x))
+            rospy.loginfo("Postional error y: %.3f\tPositional tolerance y: %f" % (positional_error[1], self.positional_tolerance_y))
+            rospy.loginfo("Postional error z: %.3f\tPositional tolerance z: %f" % (positional_error[2], self.positional_tolerance_z))
+
+            rospy.loginfo("Output: %.3f\t%.3f\t%.3f"%(pose_vel.twist.linear.x,pose_vel.twist.linear.y,pose_vel.twist.linear.z))
+
+            #rospy.loginfo("Angular error       : %f" % (angular_error))
+            #rospy.loginfo("angular tolerance   : %f" % (self.angular_tolerance))
+            #rospy.loginfo("Output: %.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f"%(pose_vel.twist.linear.x,pose_vel.twist.linear.y,pose_vel.twist.linear.z,pose_vel.twist.angular.x,pose_vel.twist.angular.y,pose_vel.twist.angular.z))
             
             
             self.cart_vel_pub.publish(pose_vel)
